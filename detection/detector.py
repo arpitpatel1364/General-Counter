@@ -7,7 +7,14 @@ Handles all three ROI modes:
   - rectangle: real-time occupancy inside a box
   - polygon:   real-time occupancy inside a polygon
 """
+import os
+# Suppress noisy FFmpeg/HEVC decoding warnings in console
+os.environ["FFMPEG_LOG_LEVEL"] = "quiet"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
+os.environ["OPENCV_LOG_LEVEL"] = "quiet"
+
 import cv2
+cv2.setLogLevel(0)
 import numpy as np
 import time
 import logging
@@ -79,6 +86,7 @@ class Detector:
         # Line-crossing state: track_id -> last signed side
         self._prev_side: dict[int, float] = {}
         self._last_cross_time: dict[int, float] = {}
+        self._prev_inside_ids: set[int] = set()
 
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -155,16 +163,28 @@ class Detector:
             t_prev = time.time()
             frame_count = 0
 
+            retry_count = 0
+
             while not self._stop.is_set():
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning("Camera %d: lost frame — reconnecting", self.camera_id)
-                    break
+                    retry_count += 1
+                    if retry_count > 30:
+                        logger.warning("Camera %d: lost frame — reconnecting", self.camera_id)
+                        break
+                    time.sleep(0.1)
+                    continue
+                else:
+                    retry_count = 0
                     
                 # Drop oldest buffered frame to prevent lag accumulation
-                cap.grab()
+                # cap.grab()
 
-                annotated = self._process(frame)
+                try:
+                    annotated = self._process(frame)
+                except Exception as e:
+                    logger.error("Camera %d: Error processing frame: %s", self.camera_id, e)
+                    annotated = frame.copy()
 
                 frame_count += 1
                 now = time.time()
@@ -206,10 +226,12 @@ class Detector:
         if self.model is None or self.status != "running":
             return frame
             
-        imgsz = min(settings.IMGSZ, 416)
+        imgsz = settings.IMGSZ
+        target_classes = None if self.target_class == -1 else [self.target_class]
+        
         results = self.model.track(
             frame,
-            classes=[self.target_class],
+            classes=target_classes,
             conf=settings.CONFIDENCE,
             iou=settings.IOU,
             tracker=settings.TRACKER,
@@ -220,7 +242,6 @@ class Detector:
 
         result = results[0] if results else None
         
-        # Use YOLO's annotated frame, or raw frame if no results
         annotated = result.plot() if result else frame.copy()
 
         # Overlay ROI geometry
@@ -267,33 +288,41 @@ class Detector:
             boxes = result.boxes
             ids = boxes.id  # track IDs (may be None if no tracks yet)
 
-            occupants = 0  # for rectangle / polygon
-            
-            # Prune stale tracks to prevent ghost crossings
-            current_ids = set(int(x.item()) for x in ids) if ids is not None else set()
             with self._lock:
-                self._prev_side = {k: v for k, v in self._prev_side.items() if k in current_ids}
-                self._last_cross_time = {k: v for k, v in self._last_cross_time.items() if k in current_ids}
+                current_inside_ids = set()
+                occupants = 0
+                
+                # Prune stale tracks periodically to prevent memory leaks while keeping history
+                if len(self._prev_side) > 2000:
+                    now = time.time()
+                    self._prev_side = {k: v for k, v in self._prev_side.items() if now - self._last_cross_time.get(k, 0) < 300}
+                    self._last_cross_time = {k: v for k, v in self._last_cross_time.items() if now - v < 300}
 
-            for i, box in enumerate(boxes.xyxy):
-                x1, y1, x2, y2 = map(int, box.tolist())
-                # Use foot point (bottom-center) for crossing logic
-                cx, cy = (x1 + x2) // 2, y2
-                track_id = int(ids[i].item()) if ids is not None else -1
+                for i, box in enumerate(boxes.xyxy):
+                    x1, y1, x2, y2 = map(int, box.tolist())
+                    
+                    # Use foot point (bottom-center) for crossing logic
+                    cx, cy = (x1 + x2) // 2, y2
+                    track_id = int(ids[i].item()) if ids is not None else -1
 
-                # ROI logic
-                if self.roi_type == "line" and track_id >= 0:
-                    self._check_line_crossing(track_id, cx, cy, frame.shape)
-                elif self.roi_type == "rectangle":
-                    if self._inside_rect(cx, cy, frame.shape):
-                        occupants += 1
-                elif self.roi_type == "polygon":
-                    poly = self._get_scaled_pts(frame.shape)
-                    if poly and _inside_polygon(cx, cy, poly):
-                        occupants += 1
+                    # ROI logic
+                    if self.roi_type == "line" and track_id >= 0:
+                        self._check_line_crossing(track_id, cx, cy, frame.shape)
+                    elif self.roi_type == "rectangle":
+                        if self._inside_rect(cx, cy, frame.shape):
+                            occupants += 1
+                            if track_id >= 0:
+                                current_inside_ids.add(track_id)
+                    elif self.roi_type == "polygon":
+                        poly = self._get_scaled_pts(frame.shape)
+                        if poly and _inside_polygon(cx, cy, poly):
+                            occupants += 1
+                            if track_id >= 0:
+                                current_inside_ids.add(track_id)
 
-            if self.roi_type in ("rectangle", "polygon"):
-                self.roi_occupancy = occupants
+                if self.roi_type in ("rectangle", "polygon"):
+                    self.roi_occupancy = occupants
+                    self._check_region_crossing(current_inside_ids)
 
         return annotated
 
@@ -324,26 +353,26 @@ class Detector:
 
         side = _point_side(cx, cy, x1, y1, x2, y2)
         
-        with self._lock:
-            prev = self._prev_side.get(track_id)
-            last_time = self._last_cross_time.get(track_id, 0.0)
-            now = time.time()
+        # Lock is already held by caller (_process)
+        prev = self._prev_side.get(track_id)
+        last_time = self._last_cross_time.get(track_id, 0.0)
+        now = time.time()
 
-            if prev is not None and abs(prev) > 1e-5 and abs(side) > 1e-5:
-                direction = self.roi_data.get('direction', 'both')
-                cross_type = self._crossing_direction(prev, side, direction)
-                
-                # Cooldown of 1.0 seconds per track ID
-                if cross_type and (now - last_time > 1.0):
-                    if cross_type == "IN":
-                        self.in_count += 1
-                    else:
-                        self.out_count += 1
-                        
-                    db.log_event(self.camera_id, self.session_id, track_id, cross_type)
-                    self._last_cross_time[track_id] = now
+        if prev is not None and abs(prev) > 1e-5 and abs(side) > 1e-5:
+            direction = self.roi_data.get('direction', 'both')
+            cross_type = self._crossing_direction(prev, side, direction)
+            
+            # Cooldown of 1.0 seconds per track ID
+            if cross_type and (now - last_time > 1.0):
+                if cross_type == "IN":
+                    self.in_count += 1
+                else:
+                    self.out_count += 1
+                    
+                db.log_event(self.camera_id, self.session_id, track_id, cross_type)
+                self._last_cross_time[track_id] = now
 
-            self._prev_side[track_id] = side
+        self._prev_side[track_id] = side
 
     def _inside_rect(self, cx: int, cy: int, frame_shape: tuple) -> bool:
         pts = self._get_scaled_pts(frame_shape)
@@ -352,5 +381,25 @@ class Detector:
         rx1, ry1 = pts[0]
         rx2, ry2 = pts[1]
         return min(rx1, rx2) <= cx <= max(rx1, rx2) and min(ry1, ry2) <= cy <= max(ry1, ry2)
+
+    def _check_region_crossing(self, current_inside_ids: set):
+        new_ins = current_inside_ids - self._prev_inside_ids
+        new_outs = self._prev_inside_ids - current_inside_ids
+        
+        now = time.time()
+        for tid in new_ins:
+            # Check cooldown to prevent flickering
+            if now - self._last_cross_time.get(tid, 0) > 1.0:
+                self.in_count += 1
+                db.log_event(self.camera_id, self.session_id, tid, "IN")
+                self._last_cross_time[tid] = now
+                
+        for tid in new_outs:
+            if now - self._last_cross_time.get(tid, 0) > 1.0:
+                self.out_count += 1
+                db.log_event(self.camera_id, self.session_id, tid, "OUT")
+                self._last_cross_time[tid] = now
+                
+        self._prev_inside_ids = current_inside_ids
 
 

@@ -229,7 +229,7 @@
         
         newSessionModal.style.display = 'none';
         try {
-          await fetch('/api/sessions/start', {
+          const res = await fetch('/api/sessions/start', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -238,6 +238,13 @@
               target_class: parseInt(inputClass.value) || 0
             })
           });
+          
+          if (!res.ok) {
+            const data = await res.json();
+            alert(data.detail || data.error || "Failed to start counting.");
+            return;
+          }
+          
           loadSessions(camId);
         } catch (err) { console.error(err); }
       });
@@ -332,7 +339,12 @@
 
       window.resumeSession = async (id) => {
         try {
-          await fetch(`/api/sessions/${id}/resume`, { method: 'POST' });
+          const res = await fetch(`/api/sessions/${id}/resume`, { method: 'POST' });
+          if (!res.ok) {
+            const data = await res.json();
+            alert(data.detail || data.error || "Failed to resume lap.");
+            return;
+          }
           loadSessions(cameraSelect.value);
         } catch (e) {
           console.error(e);

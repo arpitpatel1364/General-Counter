@@ -179,6 +179,8 @@ def update_camera_target_class(camera_id: int, target_class: int):
 
 def delete_camera(camera_id: int):
     with db() as conn:
+        conn.execute("DELETE FROM detection_logs WHERE camera_id=?", (camera_id,))
+        conn.execute("DELETE FROM sessions WHERE camera_id=?", (camera_id,))
         conn.execute("DELETE FROM cameras WHERE id=?", (camera_id,))
 
 
@@ -240,7 +242,7 @@ def resume_session(session_id: int):
         # Update the camera's target class to match
         conn.execute("UPDATE cameras SET target_class=? WHERE id=?", (target_class, camera_id))
         
-    return camera_id
+    return camera_id, target_class
 
 def close_active_session(camera_id: int):
     with db() as conn:
@@ -404,3 +406,22 @@ def get_recent_logs(camera_id: int, limit: int = 20):
             (camera_id, limit),
         ).fetchall()
     return [dict(r) for r in rows]
+
+def analytics_averages(camera_id: int):
+    """Returns the total IN+OUT events over the last 3, 7, and 30 days."""
+    with db() as conn:
+        res = conn.execute(
+            """SELECT
+                 SUM(CASE WHEN timestamp >= datetime('now', '-3 days') THEN 1 ELSE 0 END) as sum_3,
+                 SUM(CASE WHEN timestamp >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as sum_7,
+                 SUM(CASE WHEN timestamp >= datetime('now', '-30 days') THEN 1 ELSE 0 END) as sum_30
+               FROM detection_logs
+               WHERE camera_id=? AND event_type IN ('IN', 'OUT')""",
+            (camera_id,)
+        ).fetchone()
+        
+    return {
+        "last_3_days": res["sum_3"] or 0,
+        "last_7_days": res["sum_7"] or 0,
+        "last_30_days": res["sum_30"] or 0
+    }

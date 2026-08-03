@@ -63,4 +63,3 @@ logs/
 weights/*.pt
 weights/*.onnx
 weights/*.engine
-

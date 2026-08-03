@@ -50,7 +50,6 @@ async def _mjpeg_generator(camera_id: int):
             + data
             + b"\r\n"
         )
-        await asyncio.sleep(frame_delay)
 
 
 @router.get("/{camera_id}")

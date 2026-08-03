@@ -6,6 +6,12 @@ Run with:
 """
 import logging
 import os
+
+# Suppress noisy FFmpeg/HEVC decoding warnings globally before cv2 is imported anywhere
+os.environ["FFMPEG_LOG_LEVEL"] = "quiet"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
+os.environ["OPENCV_LOG_LEVEL"] = "quiet"
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

@@ -33,6 +33,14 @@ def start_session(payload: SessionStart):
     if not cam:
         raise HTTPException(status_code=404, detail="Camera not found")
         
+    det = camera_manager.get_detector(payload.camera_id)
+    if not det:
+        # Auto-start camera if it's not running
+        success = camera_manager.start_camera(payload.camera_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to start the camera stream automatically.")
+        det = camera_manager.get_detector(payload.camera_id)
+        
     db.update_camera_target_class(payload.camera_id, payload.target_class)
     session_id = db.create_session(payload.camera_id, payload.name, payload.target_class)
     camera_manager.start_counting(payload.camera_id, session_id, payload.target_class)
@@ -41,11 +49,25 @@ def start_session(payload: SessionStart):
 
 @router.post("/{session_id}/resume")
 def resume_session(session_id: int):
-    camera_id = db.resume_session(session_id)
-    if camera_id is not None:
-        camera_manager.start_counting(camera_id)
+    result = db.resume_session(session_id)
+    if result is not None:
+        camera_id, target_class = result
+        
+        det = camera_manager.get_detector(camera_id)
+        if not det:
+            success = camera_manager.start_camera(camera_id)
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to start the camera stream automatically.")
+            det = camera_manager.get_detector(camera_id)
+            
+        camera_manager.start_counting(camera_id, session_id, target_class)
         return {"message": "Session resumed"}
     return {"error": "Session not found"}
+
+@router.post("/pause")
+def pause_session(payload: SessionStop):
+    camera_manager.stop_counting(payload.camera_id)
+    return {"message": "Session paused"}
 
 @router.post("/stop")
 def stop_session(payload: SessionStop):

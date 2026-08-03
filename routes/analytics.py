@@ -60,3 +60,7 @@ def logs(camera_id: int, limit: int = Query(default=20, le=100)):
 @router.get("/session/{session_id}")
 def session_analytics(session_id: int):
     return db.analytics_for_session(session_id)
+
+@router.get("/{camera_id}/averages")
+def averages(camera_id: int):
+    return db.analytics_averages(camera_id)

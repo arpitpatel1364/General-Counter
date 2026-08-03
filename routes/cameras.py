@@ -97,6 +97,17 @@ def camera_stats(camera_id: int):
     det = camera_manager.get_detector(camera_id)
     if not det:
         return {"online": False, "in_count": 0, "out_count": 0, "roi_occupancy": 0, "fps": 0, "status": "stopped", "target_class": 0}
+        
+    session_name = "Unknown Session"
+    if det.session_id:
+        session = db.get_active_session(camera_id)
+        if session:
+            session_name = session['name']
+            
+    class_name = f"Class {det.target_class}"
+    if det.model and hasattr(det.model, "names"):
+        class_name = det.model.names.get(det.target_class, class_name)
+        
     return {
         "online": det.online,
         "in_count": det.in_count,
@@ -105,5 +116,7 @@ def camera_stats(camera_id: int):
         "fps": round(det.fps, 1),
         "roi_type": det.roi_type,
         "status": det.status,
-        "target_class": det.target_class
+        "target_class": det.target_class,
+        "session_name": session_name,
+        "class_name": class_name
     }

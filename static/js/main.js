@@ -16,7 +16,78 @@ document.addEventListener('DOMContentLoaded', () => {
   } else if (path === '/analytics') {
     initAnalytics();
   }
+
+  // Initialize global status for all pages
+  initGlobalStatus();
 });
+
+// --- Global Status ---
+let globalStatusInterval = null;
+
+async function initGlobalStatus() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  // Create global status element in sidebar
+  const statusContainer = document.createElement('div');
+  statusContainer.style.padding = '16px';
+  statusContainer.style.marginTop = 'auto';
+  statusContainer.style.borderTop = '1px solid var(--border-subtle)';
+  statusContainer.innerHTML = `
+    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">System Status</div>
+    <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
+      <span id="globalStatusIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
+      <span id="globalStatusText" style="color: var(--text-color);">Idle</span>
+    </div>
+  `;
+  
+  // Insert before footer
+  const footer = sidebar.querySelector('.sidebar-footer');
+  if (footer) {
+    sidebar.insertBefore(statusContainer, footer);
+  } else {
+    sidebar.appendChild(statusContainer);
+  }
+
+  async function pollGlobalStatus() {
+    try {
+      const res = await fetch('/api/cameras');
+      if (res.ok) {
+        const cameras = await res.json();
+        const activeCams = cameras.filter(c => c.running);
+        
+        const indicator = document.getElementById('globalStatusIndicator');
+        const text = document.getElementById('globalStatusText');
+        
+        if (activeCams.length > 0) {
+          // Check stats for the first active camera to see if it's counting or loading
+          const statRes = await fetch('/api/cameras/' + activeCams[0].id + '/stats');
+          if (statRes.ok) {
+            const stats = await statRes.json();
+            if (stats.status === 'running') {
+              indicator.style.backgroundColor = 'var(--accent-green)';
+              text.textContent = 'Counting Active';
+            } else if (stats.status === 'loading') {
+              indicator.style.backgroundColor = 'var(--accent-orange)';
+              text.textContent = 'Loading Model...';
+            } else {
+              indicator.style.backgroundColor = 'var(--accent-blue)';
+              text.textContent = 'Camera Online';
+            }
+          }
+        } else {
+          indicator.style.backgroundColor = 'var(--text-muted)';
+          text.textContent = 'Idle';
+        }
+      }
+    } catch(err) {
+      console.error('Global status poll error:', err);
+    }
+  }
+
+  pollGlobalStatus();
+  globalStatusInterval = setInterval(pollGlobalStatus, 3000);
+}
 
 // --- Dashboard ---
 let dashboardInterval = null;
@@ -108,13 +179,20 @@ async function initDashboard() {
 
 function initSessionControls(cameraId) {
   const btnToggle = document.getElementById('btnToggleCount');
+  const activeActionButtons = document.getElementById('activeActionButtons');
+  const btnPauseCount = document.getElementById('btnPauseCount');
+  const btnExitSession = document.getElementById('btnExitSession');
+  
   const countingIndicator = document.getElementById('countingIndicator');
   const countingText = document.getElementById('countingText');
+  
   const modal = document.getElementById('newSessionModal');
   const btnCancel = document.getElementById('btnCancelSession');
   const btnStart = document.getElementById('btnStartSession');
   const inputName = document.getElementById('sessionName');
   const inputClass = document.getElementById('targetClass');
+  const existingSessionSelect = document.getElementById('existingSessionSelect');
+  const newSessionFields = document.getElementById('newSessionFields');
 
   let currentStatus = 'stopped';
 
@@ -125,21 +203,25 @@ function initSessionControls(cameraId) {
         const data = await res.json();
         currentStatus = data.status;
         
-        btnToggle.style.display = 'block';
         if (currentStatus === 'running') {
           countingIndicator.style.backgroundColor = 'var(--accent-green)';
-          countingText.textContent = 'Counting Active (Class ' + data.target_class + ')';
-          btnToggle.textContent = 'Stop Counting';
-          btnToggle.classList.replace('btn-primary', 'btn-secondary');
+          const sessionStr = data.session_name || 'Unknown Lap';
+          const classStr = data.class_name ? data.class_name.charAt(0).toUpperCase() + data.class_name.slice(1) : 'Unknown Class';
+          countingText.textContent = `Counting Active: ${sessionStr} (${classStr}) | IN: ${data.in_count} | OUT: ${data.out_count}`;
+          btnToggle.style.display = 'none';
+          activeActionButtons.style.display = 'flex';
         } else if (currentStatus === 'loading') {
           countingIndicator.style.backgroundColor = 'var(--accent-orange)';
           countingText.textContent = 'Loading model plz wait...';
           btnToggle.style.display = 'none';
+          activeActionButtons.style.display = 'none';
         } else {
           countingIndicator.style.backgroundColor = 'var(--text-muted)';
           countingText.textContent = 'Ready to count';
+          btnToggle.style.display = 'block';
           btnToggle.textContent = 'Start Counting';
           btnToggle.classList.replace('btn-secondary', 'btn-primary');
+          activeActionButtons.style.display = 'none';
         }
       }
     } catch(err) {
@@ -152,13 +234,62 @@ function initSessionControls(cameraId) {
   pollStatus();
 
   btnToggle.addEventListener('click', async () => {
+    if (currentStatus === 'stopped') {
+      // Open modal
+      inputName.value = '';
+      existingSessionSelect.innerHTML = '<option value="">-- Create New Lap --</option>';
+      newSessionFields.style.display = 'block';
+      
+      // Fetch existing sessions
+      try {
+        const res = await fetch(`/api/sessions/${cameraId}`);
+        if (res.ok) {
+          const sessions = await res.json();
+          sessions.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.name} (Started: ${s.created_at})`;
+            existingSessionSelect.appendChild(opt);
+          });
+        }
+      } catch (err) { console.error('Failed to fetch sessions', err); }
+      
+      modal.style.display = 'flex';
+    }
+  });
+
+  existingSessionSelect?.addEventListener('change', (e) => {
+    if (e.target.value) {
+      newSessionFields.style.display = 'none';
+    } else {
+      newSessionFields.style.display = 'block';
+    }
+  });
+
+  btnPauseCount?.addEventListener('click', async () => {
     if (currentStatus === 'running') {
-      // Optimistic UI update
       currentStatus = 'stopped';
       countingIndicator.style.backgroundColor = 'var(--text-muted)';
       countingText.textContent = 'Stopping...';
-      btnToggle.textContent = 'Start Counting';
-      btnToggle.classList.replace('btn-secondary', 'btn-primary');
+      activeActionButtons.style.display = 'none';
+      
+      try {
+        await fetch('/api/sessions/pause', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({camera_id: cameraId})
+        });
+        pollStatus();
+      } catch (err) { console.error(err); }
+    }
+  });
+
+  btnExitSession?.addEventListener('click', async () => {
+    if (currentStatus === 'running') {
+      currentStatus = 'stopped';
+      countingIndicator.style.backgroundColor = 'var(--text-muted)';
+      countingText.textContent = 'Exiting...';
+      activeActionButtons.style.display = 'none';
       
       try {
         await fetch('/api/sessions/stop', {
@@ -168,10 +299,6 @@ function initSessionControls(cameraId) {
         });
         pollStatus();
       } catch (err) { console.error(err); }
-    } else if (currentStatus === 'stopped') {
-      // Open modal
-      inputName.value = '';
-      modal.style.display = 'flex';
     }
   });
 
@@ -187,8 +314,10 @@ function initSessionControls(cameraId) {
   });
 
   btnStart.addEventListener('click', async () => {
+    const selectedSessionId = existingSessionSelect.value;
     const name = inputName.value.trim();
-    if (!name) return alert('Please enter a Lap Name');
+    
+    if (!selectedSessionId && !name) return alert('Please enter a Lap Name or select an existing one');
     
     modal.style.display = 'none';
     
@@ -197,17 +326,36 @@ function initSessionControls(cameraId) {
     countingIndicator.style.backgroundColor = 'var(--accent-orange)';
     countingText.textContent = 'Loading model plz wait...';
     btnToggle.style.display = 'none';
+    activeActionButtons.style.display = 'none';
     
     try {
-      await fetch('/api/sessions/start', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          camera_id: cameraId,
-          name: name,
-          target_class: parseInt(inputClass.value) || 0
-        })
-      });
+      let res;
+      if (selectedSessionId) {
+        res = await fetch(`/api/sessions/${selectedSessionId}/resume`, { method: 'POST' });
+      } else {
+        res = await fetch('/api/sessions/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            camera_id: cameraId,
+            name: name,
+            target_class: parseInt(inputClass.value) || 0
+          })
+        });
+      }
+      
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || data.error || "Failed to start counting.");
+        currentStatus = 'stopped';
+        countingIndicator.style.backgroundColor = 'var(--text-muted)';
+        countingText.textContent = 'Ready to count';
+        btnToggle.style.display = 'block';
+        btnToggle.textContent = 'Start Counting';
+        activeActionButtons.style.display = 'none';
+        return;
+      }
+      
       pollStatus();
     } catch (err) { console.error(err); }
   });
@@ -306,7 +454,7 @@ async function initCameras() {
       
       toggle.addEventListener('change', () => {
         if (toggle.checked) {
-          container.innerHTML = `<img src="/api/stream/${cam.id}?t=${Date.now()}" alt="Live Stream">`;
+          container.innerHTML = `<img src="/api/stream/${cam.id}?t=${Date.now()}" alt="Live Stream" style="width: 100%; height: 100%; object-fit: cover; background: #111;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'800\\\' height=\\\'450\\\'><rect width=\\\'100%\\\' height=\\\'100%\\\' fill=\\\'%23111\\\'/><text x=\\\'50%\\\' y=\\\'50%\\\' font-family=\\\'sans-serif\\\' font-size=\\\'16px\\\' fill=\\\'%23666\\\' text-anchor=\\\'middle\\\' dominant-baseline=\\\'middle\\\'>Stream Offline</text></svg>';">`;
         } else {
           container.innerHTML = `
             <div class="video-offline">
@@ -489,6 +637,10 @@ async function initROI() {
   let isImageLoaded = false;
 
   // Load stream frame
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='100%' height='100%' fill='%23111'/><text x='50%' y='50%' font-family='sans-serif' font-size='16px' fill='%23666' text-anchor='middle' dominant-baseline='middle'>Camera Offline</text></svg>";
+  };
   img.src = `/api/stream/${camId}?snapshot=1`;
   img.onload = () => {
     canvas.width = img.clientWidth;
@@ -625,7 +777,7 @@ async function initROI() {
     ctx.fillStyle = 'rgba(59, 130, 246, 0.18)';
 
     let pts = [...roiPoints];
-    let actualMode = getModeFromPoints();
+    let actualMode = currentShapeType;
 
     if (actualMode === 'line') {
       if (pts.length > 0) {
@@ -743,7 +895,7 @@ async function initROI() {
 
   document.getElementById('btnSaveRoi').addEventListener('click', async () => {
     let finalType = 'line';
-    let amode = getModeFromPoints();
+    let amode = currentShapeType;
     if (amode === 'rect') finalType = 'rectangle';
     if (amode === 'poly') finalType = 'polygon';
     
@@ -836,8 +988,30 @@ async function loadChartData() {
     if (!res.ok) return;
     const data = await res.json();
     
-    // Assuming backend returns { labels: [...], in_counts: [...], out_counts: [...], occupancies: [...] }
     renderCharts(data);
+    
+    // Fetch averages
+    const avgRes = await fetch(`/api/analytics/${camId}/averages`);
+    if (avgRes.ok) {
+      const avgData = await avgRes.json();
+      
+      const elSelected = document.getElementById('avgSelected');
+      const elSelectedComp = document.getElementById('avgSelectedCompare');
+      const el3Days = document.getElementById('avg3Days');
+      const el7Days = document.getElementById('avg7Days');
+      const el30Days = document.getElementById('avg30Days');
+      
+      if (el3Days) el3Days.textContent = avgData.last_3_days;
+      if (el7Days) el7Days.textContent = avgData.last_7_days;
+      if (el30Days) el30Days.textContent = avgData.last_30_days;
+      
+      // Compute selected window total
+      if (Array.isArray(data)) {
+        const selectedTotal = data.reduce((acc, curr) => acc + (curr.in_count || 0) + (curr.out_count || 0), 0);
+        if (elSelected) elSelected.textContent = selectedTotal;
+        if (elSelectedComp) elSelectedComp.textContent = selectedTotal;
+      }
+    }
   } catch (err) {
     console.error(err);
   }
