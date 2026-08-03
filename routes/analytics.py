@@ -56,3 +56,7 @@ def custom(
 @router.get("/{camera_id}/logs")
 def logs(camera_id: int, limit: int = Query(default=20, le=100)):
     return db.get_recent_logs(camera_id, limit=limit)
+
+@router.get("/session/{session_id}")
+def session_analytics(session_id: int):
+    return db.analytics_for_session(session_id)

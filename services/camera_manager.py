@@ -36,13 +36,21 @@ class CameraManager:
             return False
 
         roi_data = json.loads(cam["roi_data"]) if cam["roi_data"] else {}
+        target_class = cam.get("target_class", 0)
         detector = Detector(
             camera_id=camera_id,
             rtsp_url=cam["rtsp_url"],
             roi_type=cam["roi_type"],
             roi_data=roi_data,
+            target_class=target_class
         )
         self._detectors[camera_id] = detector
+        
+        # If there's an active session, start counting automatically
+        active_session = db.get_active_session(camera_id)
+        if active_session:
+            detector.start_counting(active_session['id'], target_class)
+            
         logger.info("Camera %d started", camera_id)
         return True
 
@@ -74,6 +82,16 @@ class CameraManager:
         det = self._detectors.get(camera_id)
         if det:
             det.update_roi(roi_type, roi_data)
+
+    def start_counting(self, camera_id: int, session_id: int, target_class: int):
+        det = self._detectors.get(camera_id)
+        if det:
+            det.start_counting(session_id, target_class)
+
+    def stop_counting(self, camera_id: int):
+        det = self._detectors.get(camera_id)
+        if det:
+            det.stop_counting()
 
     # ------------------------------------------------------------------
     # Global stats aggregation

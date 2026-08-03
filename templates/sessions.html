@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Counter - Laps / Sessions</title>
+  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .session-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .session-card {
+      position: relative;
+    }
+    .session-status {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: var(--radius-full);
+    }
+    .status-active {
+      background-color: rgba(34, 197, 94, 0.1);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+    .status-closed {
+      background-color: var(--bg-input);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+    .session-stats {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border-subtle);
+    }
+    .stat-box {
+      flex: 1;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/sessions" class="nav-link active">Laps / Sessions</a>
+      <a href="/cameras" class="nav-link">Cameras</a>
+      <a href="/settings" class="nav-link">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
+      <h1>Laps / Sessions</h1>
+      <button id="btnNewSession" class="btn btn-primary" style="display: none;">Start New Lap</button>
+    </header>
+
+    <div class="content">
+      <p style="color: var(--text-secondary);">View history of counting sessions and batch runs.</p>
+      
+      <div class="filter-bar card mt-16">
+        <label for="cameraSelect">Camera:</label>
+        <select id="cameraSelect" style="width: 200px;"></select>
+      </div>
+
+      <div id="sessionsGrid" class="session-grid">
+        <!-- JS generates cards here -->
+      </div>
+      
+      <div id="emptyState" style="display: none; text-align: center; padding: 60px 20px;" class="card mt-16">
+        <h3 style="color: var(--text-muted);">No sessions found.</h3>
+      </div>
+    </div>
+  </main>
+
+  <!-- New Session Modal -->
+  <div id="newSessionModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="card" style="width: 400px; padding: 24px;">
+      <h3 style="margin-top: 0; margin-bottom: 16px;">Start New Lap</h3>
+      
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="sessionName">Lap Name / Truck Number</label>
+        <input type="text" id="sessionName" class="form-control" placeholder="e.g. Truck-XYZ-123" style="width: 100%; margin-top: 8px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label for="targetClass">Target Object</label>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <select id="targetClass" class="form-control" style="width: 100%;">
+            <option value="0">Person</option>
+            <option value="1">Bicycle</option>
+            <option value="2">Car</option>
+            <option value="3">Motorcycle</option>
+            <option value="5">Bus</option>
+            <option value="7">Truck</option>
+            <option value="15">Cat</option>
+            <option value="16">Dog</option>
+            <option value="24">Backpack</option>
+            <option value="26">Handbag</option>
+            <option value="28">Suitcase</option>
+            <option value="39">Bottle</option>
+            <option value="41">Cup</option>
+            <option value="56">Chair</option>
+            <option value="63">Laptop</option>
+            <option value="67">Cell Phone</option>
+            <option value="73">Book</option>
+          </select>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button id="btnCancelSession" class="btn btn-secondary">Cancel</button>
+        <button id="btnStartSession" class="btn btn-primary">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Analytics Modal -->
+  <div id="analyticsModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="card" style="width: 800px; padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 id="analyticsModalTitle" style="margin: 0;">Session Analytics</h3>
+        <button id="btnCloseAnalytics" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+      </div>
+      
+      <div id="sessionChartContainer" style="display: flex; align-items: flex-end; gap: 4px; height: 300px; padding: 16px; background: #070708; border-radius: var(--radius-md); border-bottom: 1px dashed var(--border-subtle); overflow-x: auto;">
+        <!-- Bars will be inserted here -->
+      </div>
+      <div id="sessionChartEmpty" style="display: none; text-align: center; color: var(--text-muted); padding: 40px;">No data recorded for this session.</div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="sessionTooltip" class="chart-tooltip" style="display:none; position:absolute; z-index: 2000;"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const cameraSelect = document.getElementById("cameraSelect");
+      const sessionsGrid = document.getElementById("sessionsGrid");
+      const emptyState = document.getElementById("emptyState");
+      const btnNewSession = document.getElementById("btnNewSession");
+      
+      // New Session Modal elements
+      const newSessionModal = document.getElementById("newSessionModal");
+      const btnCancelSession = document.getElementById("btnCancelSession");
+      const btnStartSession = document.getElementById("btnStartSession");
+      const inputName = document.getElementById("sessionName");
+      const inputClass = document.getElementById("targetClass");
+
+      // Analytics Modal elements
+      const analyticsModal = document.getElementById("analyticsModal");
+      const btnCloseAnalytics = document.getElementById("btnCloseAnalytics");
+      const sessionChartContainer = document.getElementById("sessionChartContainer");
+      const sessionChartEmpty = document.getElementById("sessionChartEmpty");
+      const analyticsModalTitle = document.getElementById("analyticsModalTitle");
+      const tooltip = document.getElementById("sessionTooltip");
+
+      // Load cameras
+      try {
+        const res = await fetch("/api/cameras");
+        const cams = await res.json();
+        cams.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id;
+          opt.textContent = c.name;
+          cameraSelect.appendChild(opt);
+        });
+        
+        if (cams.length > 0) {
+          btnNewSession.style.display = 'inline-flex';
+          loadSessions(cams[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load cameras", err);
+      }
+
+      cameraSelect.addEventListener("change", () => {
+        loadSessions(cameraSelect.value);
+      });
+
+      btnNewSession.addEventListener("click", () => {
+        inputName.value = '';
+        newSessionModal.style.display = 'flex';
+      });
+
+      btnCancelSession.addEventListener("click", () => {
+        newSessionModal.style.display = 'none';
+      });
+      
+      newSessionModal.addEventListener("click", (e) => {
+        if (e.target === newSessionModal) newSessionModal.style.display = 'none';
+      });
+
+      btnStartSession.addEventListener("click", async () => {
+        const name = inputName.value.trim();
+        const camId = cameraSelect.value;
+        if (!name || !camId) return alert('Please enter a Lap Name');
+        
+        newSessionModal.style.display = 'none';
+        try {
+          await fetch('/api/sessions/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              camera_id: parseInt(camId),
+              name: name,
+              target_class: parseInt(inputClass.value) || 0
+            })
+          });
+          loadSessions(camId);
+        } catch (err) { console.error(err); }
+      });
+
+      btnCloseAnalytics.addEventListener("click", () => {
+        analyticsModal.style.display = 'none';
+      });
+      
+      analyticsModal.addEventListener("click", (e) => {
+        if (e.target === analyticsModal) analyticsModal.style.display = 'none';
+      });
+
+      // Global functions for session actions
+      window.editSession = async (id, oldName) => {
+        const newName = prompt("Enter new name for lap:", oldName);
+        if (newName && newName.trim() !== oldName) {
+          try {
+            await fetch(`/api/sessions/${id}`, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ name: newName.trim() })
+            });
+            loadSessions(cameraSelect.value);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      };
+
+      window.viewSessionAnalytics = async (id, name) => {
+        analyticsModalTitle.textContent = `Analytics: ${name}`;
+        sessionChartContainer.innerHTML = '';
+        sessionChartEmpty.style.display = 'none';
+        analyticsModal.style.display = 'flex';
+        
+        try {
+          const res = await fetch(`/api/analytics/session/${id}`);
+          const data = await res.json();
+          
+          if (!data || data.length === 0) {
+            sessionChartEmpty.style.display = 'block';
+            return;
+          }
+          
+          const maxCount = Math.max(1, ...data.map(d => Math.max(d.in_count, d.out_count)));
+          
+          data.forEach(item => {
+            const timeLabel = item.time_slice.split(' ')[1]; // Extract HH:MM
+            const inC = item.in_count || 0;
+            const outC = item.out_count || 0;
+            
+            const col = document.createElement('div');
+            col.style = 'display: flex; flex-direction: column; justify-content: flex-end; align-items: center; width: 40px; margin: 0 4px; cursor: pointer; flex-shrink: 0;';
+            
+            const wrapper = document.createElement('div');
+            wrapper.style = 'display: flex; align-items: flex-end; gap: 2px; height: 250px; width: 100%;';
+            
+            const inH = (inC / maxCount) * 100;
+            const outH = (outC / maxCount) * 100;
+            
+            wrapper.innerHTML = `
+              <div style="width: 50%; height: ${inH}%; background: var(--accent-green); border-radius: 2px 2px 0 0;"></div>
+              <div style="width: 50%; height: ${outH}%; background: var(--accent-red); border-radius: 2px 2px 0 0;"></div>
+            `;
+            
+            col.addEventListener('mouseenter', (e) => {
+              tooltip.style.display = 'block';
+              tooltip.innerHTML = `<strong>${timeLabel}</strong><br>IN: <span style="color:var(--accent-green)">${inC}</span> | OUT: <span style="color:var(--accent-red)">${outC}</span>`;
+              tooltip.style.left = e.pageX + 10 + 'px';
+              tooltip.style.top = e.pageY - 30 + 'px';
+            });
+            col.addEventListener('mousemove', (e) => {
+              tooltip.style.left = e.pageX + 10 + 'px';
+              tooltip.style.top = e.pageY - 30 + 'px';
+            });
+            col.addEventListener('mouseleave', () => {
+              tooltip.style.display = 'none';
+            });
+            
+            const lbl = document.createElement('div');
+            lbl.style = 'font-size: 10px; margin-top: 8px; color: var(--text-muted); text-align: center;';
+            lbl.textContent = timeLabel;
+            
+            col.appendChild(wrapper);
+            col.appendChild(lbl);
+            sessionChartContainer.appendChild(col);
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      window.resumeSession = async (id) => {
+        try {
+          await fetch(`/api/sessions/${id}/resume`, { method: 'POST' });
+          loadSessions(cameraSelect.value);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      window.stopSession = async (camId) => {
+        try {
+          await fetch(`/api/sessions/stop`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ camera_id: camId })
+          });
+          loadSessions(cameraSelect.value);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      async function loadSessions(cameraId) {
+        sessionsGrid.innerHTML = "";
+        emptyState.style.display = "none";
+        try {
+          const res = await fetch(`/api/sessions/${cameraId}`);
+          const sessions = await res.json();
+          
+          if (sessions.length === 0) {
+            emptyState.style.display = "block";
+            return;
+          }
+          
+          sessions.forEach(s => {
+            const date = new Date(s.created_at).toLocaleString();
+            const closedDate = s.closed_at ? new Date(s.closed_at).toLocaleString() : "Active";
+            
+            const statusClass = s.status === 'active' ? 'status-active' : 'status-closed';
+            const statusText = s.status === 'active' ? 'Active' : 'Closed';
+            
+            const actionButton = s.status === 'active'
+              ? `<button onclick="stopSession(${s.camera_id})" class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" title="Stop Counting">⏹ Stop</button>`
+              : `<button onclick="resumeSession(${s.id})" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;" title="Resume Counting">▶ Resume</button>`;
+            
+            const card = document.createElement("div");
+            card.className = "card session-card";
+            card.innerHTML = `
+              <div class="session-status ${statusClass}" style="display: flex; gap: 8px; align-items: center; right: 16px;">
+                ${statusText}
+              </div>
+              <div style="display: flex; gap: 8px; align-items: flex-start; padding-right: 80px;">
+                <h3 style="margin-top: 0; margin-bottom: 4px; font-size: 16px; word-break: break-all;">${s.name}</h3>
+                <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-outline" style="padding: 2px 6px; font-size: 10px; border: none;" title="Edit Name">✎</button>
+                ${actionButton}
+              </div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px;">Started: ${date}</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Ended: ${closedDate}</div>
+              
+              <div class="session-stats">
+                <div class="stat-box">
+                  <div class="stat-label">In</div>
+                  <div class="stat-val" style="color: var(--accent-green);">${s.total_in}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Out</div>
+                  <div class="stat-val" style="color: var(--accent-red);">${s.total_out}</div>
+                </div>
+              </div>
+              <div style="margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+                 <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="width: 100%; font-size: 12px;">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: text-bottom;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                   View Analytics
+                 </button>
+              </div>
+            `;
+            sessionsGrid.appendChild(card);
+          });
+        } catch (err) {
+          console.error("Failed to load sessions", err);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
