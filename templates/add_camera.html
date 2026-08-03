@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Counter - Add Camera</title>
+  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/cameras" class="nav-link active">Cameras</a>
+      <a href="/settings" class="nav-link">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>Add Camera</h1>
+    </header>
+
+    <div class="content">
+      <div class="card" style="max-width: 600px; margin: 0 auto;">
+        <div class="steps">
+          <div class="step active">1. Camera Info</div>
+          <div class="step">2. ROI Setup</div>
+        </div>
+
+        <form id="addCameraForm">
+          <div class="form-group">
+            <label for="camName">Camera Name</label>
+            <input type="text" id="camName" name="name" required placeholder="e.g. Main Entrance">
+          </div>
+          
+          <div class="form-group">
+            <label for="camLocation">Location</label>
+            <input type="text" id="camLocation" name="location" required placeholder="e.g. Lobby">
+          </div>
+
+          <div class="form-group">
+            <label for="camRtsp">RTSP Stream URL</label>
+            <input type="url" id="camRtsp" name="rtsp_url" required placeholder="rtsp://admin:pass@192.168.1.10:554/stream">
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 24px;">
+            <a href="/cameras" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary">Next</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
