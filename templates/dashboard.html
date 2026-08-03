@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Counter - Dashboard</title>
+  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link active">Dashboard</a>
+      <a href="/cameras" class="nav-link">Cameras</a>
+      <a href="/settings" class="nav-link">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
+      <h1>Dashboard</h1>
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 10px;">
+        <label for="pollToggle">Live Analytics:</label>
+        <label class="switch">
+          <input type="checkbox" id="pollToggle">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="stat-grid" id="statsGrid">
+        <div class="card stat-card stat-green">
+          <div class="stat-card-header">
+            <span class="card-title">Total In (Today)</span>
+            <svg class="stat-card-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          </div>
+          <div class="card-value" id="statTotalIn">--</div>
+          <div class="stat-card-sub"><span class="dot-green">●</span> <span id="statInOnline">--</span> online</div>
+        </div>
+        
+        <div class="card stat-card stat-red">
+          <div class="stat-card-header">
+            <span class="card-title">Total Out (Today)</span>
+            <svg class="stat-card-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="card-value" id="statTotalOut">--</div>
+          <div class="stat-card-sub">Across all active capabilities</div>
+        </div>
+
+        <div class="card stat-card stat-blue">
+          <div class="stat-card-header">
+            <span class="card-title">Current Inside</span>
+            <svg class="stat-card-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="card-value" id="statCurrentInside">--</div>
+          <div class="stat-card-sub">Active AI capabilities</div>
+        </div>
+
+        <div class="card stat-card stat-orange">
+          <div class="stat-card-header">
+            <span class="card-title">Active Cameras</span>
+            <svg class="stat-card-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div class="card-value" id="statActiveCameras">--</div>
+          <div class="stat-card-sub">Capabilities assigned</div>
+        </div>
+      </div>
+
+
+      <div class="filter-bar card mt-16">
+        <label for="cameraSelect">Camera:</label>
+        <select id="cameraSelect" style="width: 200px;"></select>
+        
+        <label>Time Range:</label>
+        <div class="segmented-control" id="timeRangeSegmented">
+          <input type="radio" name="timeRange" id="tr_hourly" value="hourly">
+          <label for="tr_hourly">Hourly</label>
+          <input type="radio" name="timeRange" id="tr_daily" value="daily">
+          <label for="tr_daily">Daily</label>
+          <input type="radio" name="timeRange" id="tr_weekly" value="weekly" checked>
+          <label for="tr_weekly">Weekly</label>
+          <input type="radio" name="timeRange" id="tr_monthly" value="monthly">
+          <label for="tr_monthly">Monthly</label>
+          <input type="radio" name="timeRange" id="tr_custom" value="custom">
+          <label for="tr_custom">Custom</label>
+        </div>
+
+        <div id="customDateRange" style="display: none; align-items: center; gap: 8px;">
+          <input type="date" id="dateStart">
+          <span>to</span>
+          <input type="date" id="dateEnd">
+        </div>
+        <button id="btnApplyFilter" class="btn btn-primary">Apply Filter</button>
+      </div>
+
+      <div id="analyticsContentWrapper" class="mt-16">
+        
+        <!-- Top 3 Tinted Stat Cards -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+          <!-- Today's Entries -->
+          <div style="background: rgba(34, 197, 94, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent-green); text-transform: uppercase;">TODAY'S ENTRIES</div>
+            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valEntries">1656</div>
+            <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-green);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+          </div>
+
+          <!-- Today's Exits -->
+          <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent-blue); text-transform: uppercase;">TODAY'S EXITS</div>
+            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valExits">1643</div>
+            <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-blue);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></svg>
+          </div>
+
+          <!-- Today's Total -->
+          <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-muted); text-transform: uppercase;">TODAY'S TOTAL</div>
+            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px; display: flex; align-items: baseline; gap: 8px;">
+              <span id="valTotal">3299</span> <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">Crossings</span>
+            </div>
+            <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-purple);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+        </div>
+
+        <!-- Main Chart & Side Panel Grid -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+          
+          <!-- Chart Card: Hourly Traffic Pattern -->
+          <div class="card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Hourly Traffic Pattern</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Movement distribution across the selected period</div>
+            </div>
+
+            <!-- Bar Chart Box -->
+            <div style="position: relative; height: 280px; margin-top: 20px; border-bottom: 1px dashed var(--border-subtle); background: #070708; border-radius: var(--radius-md); padding: 16px;">
+              <div id="barChartContainer" style="display: flex; align-items: flex-end; justify-content: space-between; height: 100%; gap: 6px; position: relative;">
+                <!-- Dynamically generated bars render here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Panel: Average Performance -->
+          <div class="card" style="padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Average</div>
+                <span style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-full); font-size: 11px; padding: 2px 10px; color: var(--text-secondary);">7-day baseline</span>
+              </div>
+
+              <!-- 2x2 Mini Stat Grid -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">SELECTED WINDOW</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">4775</div>
+                </div>
+                <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LAST 3 DAYS</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">4775</div>
+                </div>
+                <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LAST 7 DAYS</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">4775</div>
+                </div>
+                <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LAST 30 DAYS</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">4775</div>
+                </div>
+              </div>
+
+              <!-- Comparison Rows -->
+              <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                  <span>Selected window</span>
+                  <span style="color: var(--text-primary); font-weight: 600;">4775</span>
+                </div>
+                <div style="height: 6px; background: var(--border-subtle); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+                  <div style="width: 100%; height: 100%; background: var(--accent-blue);"></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                  <span>7-day avg</span>
+                  <span style="color: var(--text-primary); font-weight: 600;">682</span>
+                </div>
+                <div style="height: 6px; background: var(--border-subtle); border-radius: 3px; overflow: hidden;">
+                  <div style="width: 80%; height: 100%; background: #60A5FA;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Performance Signal Box -->
+            <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 16px;">
+              <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">PERFORMANCE SIGNAL</div>
+              <div style="display: flex; align-items: center; gap: 6px; color: var(--accent-green); font-size: 15px; font-weight: 600;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Above baseline
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+      <div id="analyticsPlaceholder" class="card mt-16" style="display: none; text-align: center; padding: 60px 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <h2 style="color: var(--text-muted); font-size: 1.2rem;">Live Analytics is disabled</h2>
+        <p style="color: var(--text-muted); margin-top: 8px;">Toggle "Live Analytics" on to view historical charts and trends.</p>
+      </div>
+    </div>
+  </main>
+
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

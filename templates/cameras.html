@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Counter - Cameras</title>
+  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/cameras" class="nav-link active">Cameras</a>
+      <a href="/settings" class="nav-link">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>Cameras</h1>
+      <a href="/add-camera" class="btn btn-primary">+ Add Camera</a>
+    </header>
+
+    <div class="content">
+      <div id="camerasGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div class="card" style="grid-column: 1 / -1;"><div style="text-align:center; padding: 20px;">Loading cameras...</div></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

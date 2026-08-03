@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Counter - Settings</title>
+  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/cameras" class="nav-link">Cameras</a>
+      <a href="/settings" class="nav-link active">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>Settings</h1>
+    </header>
+
+    <div class="content">
+      <div class="card" style="max-width: 700px; padding: 0; overflow: hidden;">
+        <div style="background: var(--bg-surface-hover); padding: 24px; border-bottom: 1px solid var(--border-subtle);">
+          <h2 style="margin: 0; font-size: 1.25rem;">System Configuration</h2>
+          <p class="text-muted" style="margin: 8px 0 0 0; font-size: 0.9rem;">
+            These settings are loaded from your <code>.env</code> file. To modify them, edit the file on your Raspberry Pi and restart the service.
+          </p>
+        </div>
+        
+        <div class="settings-list">
+          <div class="setting-item">
+            <div class="setting-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            </div>
+            <div class="setting-info">
+              <div class="setting-name">Maximum Cameras</div>
+              <div class="setting-desc">The maximum number of RTSP streams supported concurrently (MAX_CAMERAS)</div>
+            </div>
+            <div class="setting-value badge badge-blue">1</div>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="setting-info">
+              <div class="setting-name">AI Model Weight</div>
+              <div class="setting-desc">The YOLO weights used for detection (MODEL)</div>
+            </div>
+            <div class="setting-value badge">yolo11n.pt</div>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div class="setting-info">
+              <div class="setting-name">Confidence Threshold</div>
+              <div class="setting-desc">Minimum score for a detection to be valid (CONFIDENCE)</div>
+            </div>
+            <div class="setting-value badge badge-green">0.35</div>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
+            </div>
+            <div class="setting-info">
+              <div class="setting-name">NMS IOU Threshold</div>
+              <div class="setting-desc">Intersection Over Union threshold for bounding box overlap (IOU)</div>
+            </div>
+            <div class="setting-value badge badge-orange">0.5</div>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+            </div>
+            <div class="setting-info">
+              <div class="setting-name">Tracker Configuration</div>
+              <div class="setting-desc">YAML configuration file for the tracker algorithm (TRACKER)</div>
+            </div>
+            <div class="setting-value badge">bytetrack.yaml</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
