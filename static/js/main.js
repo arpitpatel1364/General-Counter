@@ -94,15 +94,123 @@ async function initDashboard() {
     const camRes = await fetch('/api/cameras');
     if (camRes.ok) {
       const cameras = await camRes.json();
-      const activeCam = cameras.find(c => c.running);
-      if (activeCam) {
-        activeCameraId = activeCam.id;
+      if (cameras.length > 0) {
+        const activeCam = cameras.find(c => c.running);
+        activeCameraId = activeCam ? activeCam.id : cameras[0].id;
+        initSessionControls(activeCameraId);
       }
     }
   } catch(e) {}
 
   // Initialize analytics on the dashboard
   initAnalytics();
+}
+
+function initSessionControls(cameraId) {
+  const btnToggle = document.getElementById('btnToggleCount');
+  const countingIndicator = document.getElementById('countingIndicator');
+  const countingText = document.getElementById('countingText');
+  const modal = document.getElementById('newSessionModal');
+  const btnCancel = document.getElementById('btnCancelSession');
+  const btnStart = document.getElementById('btnStartSession');
+  const inputName = document.getElementById('sessionName');
+  const inputClass = document.getElementById('targetClass');
+
+  let currentStatus = 'stopped';
+
+  async function pollStatus() {
+    try {
+      const res = await fetch(`/api/cameras/${cameraId}/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        currentStatus = data.status;
+        
+        btnToggle.style.display = 'block';
+        if (currentStatus === 'running') {
+          countingIndicator.style.backgroundColor = 'var(--accent-green)';
+          countingText.textContent = 'Counting Active (Class ' + data.target_class + ')';
+          btnToggle.textContent = 'Stop Counting';
+          btnToggle.classList.replace('btn-primary', 'btn-secondary');
+        } else if (currentStatus === 'loading') {
+          countingIndicator.style.backgroundColor = 'var(--accent-orange)';
+          countingText.textContent = 'Loading model plz wait...';
+          btnToggle.style.display = 'none';
+        } else {
+          countingIndicator.style.backgroundColor = 'var(--text-muted)';
+          countingText.textContent = 'Ready to count';
+          btnToggle.textContent = 'Start Counting';
+          btnToggle.classList.replace('btn-secondary', 'btn-primary');
+        }
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  // Poll every 2 seconds
+  setInterval(pollStatus, 2000);
+  pollStatus();
+
+  btnToggle.addEventListener('click', async () => {
+    if (currentStatus === 'running') {
+      // Optimistic UI update
+      currentStatus = 'stopped';
+      countingIndicator.style.backgroundColor = 'var(--text-muted)';
+      countingText.textContent = 'Stopping...';
+      btnToggle.textContent = 'Start Counting';
+      btnToggle.classList.replace('btn-secondary', 'btn-primary');
+      
+      try {
+        await fetch('/api/sessions/stop', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({camera_id: cameraId})
+        });
+        pollStatus();
+      } catch (err) { console.error(err); }
+    } else if (currentStatus === 'stopped') {
+      // Open modal
+      inputName.value = '';
+      modal.style.display = 'flex';
+    }
+  });
+
+  // Modal dismiss handlers
+  btnCancel.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  });
+
+  btnStart.addEventListener('click', async () => {
+    const name = inputName.value.trim();
+    if (!name) return alert('Please enter a Lap Name');
+    
+    modal.style.display = 'none';
+    
+    // Optimistic UI update
+    currentStatus = 'loading';
+    countingIndicator.style.backgroundColor = 'var(--accent-orange)';
+    countingText.textContent = 'Loading model plz wait...';
+    btnToggle.style.display = 'none';
+    
+    try {
+      await fetch('/api/sessions/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          camera_id: cameraId,
+          name: name,
+          target_class: parseInt(inputClass.value) || 0
+        })
+      });
+      pollStatus();
+    } catch (err) { console.error(err); }
+  });
 }
 
 // --- Cameras ---

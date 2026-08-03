@@ -18,6 +18,7 @@
     </div>
     <nav>
       <a href="/" class="nav-link active">Dashboard</a>
+      <a href="/sessions" class="nav-link">Laps / Sessions</a>
       <a href="/cameras" class="nav-link">Cameras</a>
       <a href="/settings" class="nav-link">Settings</a>
     </nav>
@@ -29,7 +30,15 @@
   <main class="main">
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
       <h1>Dashboard</h1>
-      <div class="toggle-container" style="display: flex; align-items: center; gap: 10px;">
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 16px;">
+        <div id="countingStatus" style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
+          <span id="countingIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
+          <span id="countingText">Stopped</span>
+        </div>
+        <button id="btnToggleCount" class="btn btn-primary" style="display: none;">Start Counting</button>
+        
+        <div style="width: 1px; height: 24px; background: var(--border-subtle); margin: 0 8px;"></div>
+        
         <label for="pollToggle">Live Analytics:</label>
         <label class="switch">
           <input type="checkbox" id="pollToggle">
@@ -218,6 +227,48 @@
       </div>
     </div>
   </main>
+
+  <!-- New Session Modal -->
+  <div id="newSessionModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="card" style="width: 400px; padding: 24px;">
+      <h3 style="margin-top: 0; margin-bottom: 16px;">Start New Lap</h3>
+      
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="sessionName">Lap Name / Truck Number</label>
+        <input type="text" id="sessionName" class="form-control" placeholder="e.g. Truck-XYZ-123" style="width: 100%; margin-top: 8px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label for="targetClass">Target Object</label>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <select id="targetClass" class="form-control" style="width: 100%;">
+            <option value="0">Person</option>
+            <option value="1">Bicycle</option>
+            <option value="2">Car</option>
+            <option value="3">Motorcycle</option>
+            <option value="5">Bus</option>
+            <option value="7">Truck</option>
+            <option value="15">Cat</option>
+            <option value="16">Dog</option>
+            <option value="24">Backpack</option>
+            <option value="26">Handbag</option>
+            <option value="28">Suitcase</option>
+            <option value="39">Bottle</option>
+            <option value="41">Cup</option>
+            <option value="56">Chair</option>
+            <option value="63">Laptop</option>
+            <option value="67">Cell Phone</option>
+            <option value="73">Book</option>
+          </select>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button id="btnCancelSession" class="btn btn-secondary">Cancel</button>
+        <button id="btnStartSession" class="btn btn-primary">Start</button>
+      </div>
+    </div>
+  </div>
 
 
   <script src="/static/js/main.js"></script>

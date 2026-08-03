@@ -16,6 +16,7 @@ import database as db
 from routes.cameras import router as cameras_router
 from routes.stream import router as stream_router
 from routes.analytics import router as analytics_router
+from routes.sessions import router as sessions_router
 from config import settings
 
 # ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(cameras_router)
 app.include_router(stream_router)
 app.include_router(analytics_router)
+app.include_router(sessions_router)
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,10 @@ def roi_page(camera_id: int):
 @app.get("/settings")
 def settings_page():
     return _html("settings.html")
+
+@app.get("/sessions")
+def sessions_page():
+    return _html("sessions.html")
 
 
 # ---------------------------------------------------------------------------

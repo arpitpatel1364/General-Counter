@@ -96,7 +96,7 @@ def update_roi(camera_id: int, payload: ROIUpdate):
 def camera_stats(camera_id: int):
     det = camera_manager.get_detector(camera_id)
     if not det:
-        return {"online": False, "in_count": 0, "out_count": 0, "roi_occupancy": 0, "fps": 0}
+        return {"online": False, "in_count": 0, "out_count": 0, "roi_occupancy": 0, "fps": 0, "status": "stopped", "target_class": 0}
     return {
         "online": det.online,
         "in_count": det.in_count,
@@ -104,4 +104,6 @@ def camera_stats(camera_id: int):
         "roi_occupancy": det.roi_occupancy,
         "fps": round(det.fps, 1),
         "roi_type": det.roi_type,
+        "status": det.status,
+        "target_class": det.target_class
     }

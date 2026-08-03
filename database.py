@@ -81,13 +81,25 @@ def init_db():
             rtsp_url    TEXT    NOT NULL,
             roi_type    TEXT,           -- line | rectangle | polygon | NULL
             roi_data    TEXT,           -- JSON blob
+            target_class INTEGER DEFAULT 0,
             active      INTEGER DEFAULT 1,
             created_at  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            camera_id INTEGER REFERENCES cameras(id),
+            name TEXT NOT NULL,
+            target_class INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            closed_at TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS detection_logs (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             camera_id       INTEGER NOT NULL REFERENCES cameras(id),
+            session_id      INTEGER REFERENCES sessions(id),
             timestamp       TEXT    DEFAULT (datetime('now')),
             person_track_id INTEGER,
             event_type      TEXT    NOT NULL,  -- IN | OUT | ROI
@@ -101,6 +113,26 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_logs_event
             ON detection_logs (event_type, timestamp);
         """)
+        
+        # Safe schema upgrades for existing DBs
+        try:
+            conn.execute("ALTER TABLE cameras ADD COLUMN target_class INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        try:
+            conn.execute("ALTER TABLE detection_logs ADD COLUMN session_id INTEGER REFERENCES sessions(id)")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        try:
+            conn.execute("ALTER TABLE sessions ADD COLUMN target_class INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        # Create index after column is guaranteed to exist
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_session ON detection_logs (session_id)")
+        
     logger.info("Database initialised at %s", DB_PATH)
 
 
@@ -137,6 +169,14 @@ def update_camera_roi(camera_id: int, roi_type: str, roi_data: dict):
         )
 
 
+def update_camera_target_class(camera_id: int, target_class: int):
+    with db() as conn:
+        conn.execute(
+            "UPDATE cameras SET target_class=? WHERE id=?",
+            (target_class, camera_id),
+        )
+
+
 def delete_camera(camera_id: int):
     with db() as conn:
         conn.execute("DELETE FROM cameras WHERE id=?", (camera_id,))
@@ -151,8 +191,8 @@ def set_camera_active(camera_id: int, active: bool):
 # Detection log helpers
 # ---------------------------------------------------------------------------
 
-def log_event(camera_id: int, person_track_id: int, event_type: str, roi_name: str = None):
-    _event_queue.put((camera_id, person_track_id, event_type, roi_name))
+def log_event(camera_id: int, session_id: int, person_track_id: int, event_type: str, roi_name: str = None):
+    _event_queue.put((camera_id, session_id, person_track_id, event_type, roi_name))
 
 def log_events_batch(events: list):
     """Batch insert multiple events for performance."""
@@ -161,14 +201,99 @@ def log_events_batch(events: list):
     with db() as conn:
         conn.executemany(
             """INSERT INTO detection_logs
-               (camera_id, person_track_id, event_type, roi_name)
-               VALUES (?,?,?,?)""",
+               (camera_id, session_id, person_track_id, event_type, roi_name)
+               VALUES (?,?,?,?,?)""",
             events,
         )
 
 
 # ---------------------------------------------------------------------------
-# Analytics helpers
+# Sessions helpers
+# ---------------------------------------------------------------------------
+
+def create_session(camera_id: int, name: str, target_class: int = 0) -> int:
+    with db() as conn:
+        # Close any active session for this camera
+        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+        cur = conn.execute(
+            "INSERT INTO sessions (camera_id, name, target_class, status) VALUES (?,?,?,?)",
+            (camera_id, name, target_class, 'active')
+        )
+    return cur.lastrowid
+
+def resume_session(session_id: int):
+    with db() as conn:
+        # Get the camera_id and target_class for this session
+        row = conn.execute("SELECT camera_id, target_class FROM sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return
+        
+        camera_id = row['camera_id']
+        target_class = row['target_class']
+        
+        # Close any active session for this camera
+        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+        
+        # Resume this session
+        conn.execute("UPDATE sessions SET status='active', closed_at=NULL WHERE id=?", (session_id,))
+        
+        # Update the camera's target class to match
+        conn.execute("UPDATE cameras SET target_class=? WHERE id=?", (target_class, camera_id))
+        
+    return camera_id
+
+def close_active_session(camera_id: int):
+    with db() as conn:
+        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+
+def get_active_session(camera_id: int):
+    with db() as conn:
+        row = conn.execute("SELECT * FROM sessions WHERE camera_id=? AND status='active'", (camera_id,)).fetchone()
+    return dict(row) if row else None
+
+def list_sessions(camera_id: int = None):
+    with db() as conn:
+        if camera_id is not None:
+            rows = conn.execute("SELECT * FROM sessions WHERE camera_id=? ORDER BY created_at DESC", (camera_id,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+            
+    sessions = [dict(r) for r in rows]
+    # Augment with counts
+    with db() as conn:
+        for s in sessions:
+            counts = conn.execute(
+                """SELECT
+                     SUM(CASE WHEN event_type='IN' THEN 1 ELSE 0 END) AS total_in,
+                     SUM(CASE WHEN event_type='OUT' THEN 1 ELSE 0 END) AS total_out
+                   FROM detection_logs WHERE session_id=?""", (s['id'],)
+            ).fetchone()
+            s['total_in'] = counts['total_in'] or 0
+            s['total_out'] = counts['total_out'] or 0
+            
+    return sessions
+
+def rename_session(session_id: int, new_name: str):
+    with db() as conn:
+        conn.execute("UPDATE sessions SET name=? WHERE id=?", (new_name, session_id))
+
+def analytics_for_session(session_id: int):
+    """Returns list of {time_slice, in_count, out_count} for a specific session."""
+    with db() as conn:
+        rows = conn.execute(
+            """SELECT
+                 strftime('%Y-%m-%d %H:%M', timestamp) AS time_slice,
+                 SUM(CASE WHEN event_type='IN'  THEN 1 ELSE 0 END) AS in_count,
+                 SUM(CASE WHEN event_type='OUT' THEN 1 ELSE 0 END) AS out_count
+               FROM detection_logs
+               WHERE session_id=?
+               GROUP BY time_slice ORDER BY time_slice""",
+            (session_id,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+# ---------------------------------------------------------------------------
+# Legacy Analytics helpers
 # ---------------------------------------------------------------------------
 
 def _fetch_counts(camera_id: int, start: str, end: str):

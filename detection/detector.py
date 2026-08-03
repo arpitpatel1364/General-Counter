@@ -53,13 +53,16 @@ class Detector:
     Runs in its own thread; exposes the latest annotated frame + stats.
     """
 
-    def __init__(self, camera_id: int, rtsp_url: str, roi_type: str, roi_data: dict):
+    def __init__(self, camera_id: int, rtsp_url: str, roi_type: str, roi_data: dict, target_class: int = 0):
         self.camera_id = camera_id
         self.rtsp_url = rtsp_url
         self.roi_type = roi_type        # line | rectangle | polygon | None
         self.roi_data = roi_data or {}
+        self.target_class = target_class
 
-        self.model = YOLO(settings.MODEL)
+        self.model = None
+        self.status = "stopped" # stopped | loading | running
+        self.session_id = None
 
         self._frame: Optional[np.ndarray] = None
         self._lock = threading.Lock()
@@ -98,6 +101,43 @@ class Detector:
         with self._lock:
             self._prev_side.clear()
             self._last_cross_time.clear()
+
+    def start_counting(self, session_id: int, target_class: int):
+        with self._lock:
+            self.status = "loading"
+            self.session_id = session_id
+            self.target_class = target_class
+            
+        # Load model in a separate thread so it doesn't block the API response
+        def _loader():
+            try:
+                logger.info("Camera %d: Loading model...", self.camera_id)
+                model = YOLO(settings.MODEL)
+                with self._lock:
+                    if self.status == "loading": # in case stop was called during load
+                        self.model = model
+                        self.status = "running"
+                        logger.info("Camera %d: Model loaded and running.", self.camera_id)
+            except Exception as e:
+                logger.error("Camera %d: Failed to load model: %s", self.camera_id, e)
+                with self._lock:
+                    self.status = "stopped"
+                    self.session_id = None
+        
+        threading.Thread(target=_loader, daemon=True).start()
+
+    def stop_counting(self):
+        with self._lock:
+            self.status = "stopped"
+            self.model = None
+            self.session_id = None
+        
+        # Free RAM/VRAM
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info("Camera %d: Model unloaded.", self.camera_id)
 
     # ------------------------------------------------------------------
     # Internal loop
@@ -162,10 +202,14 @@ class Detector:
 
     def _process(self, frame: np.ndarray) -> np.ndarray:
         """Run YOLO tracking and apply ROI logic, return annotated frame."""
+        
+        if self.model is None or self.status != "running":
+            return frame
+            
         imgsz = min(settings.IMGSZ, 416)
         results = self.model.track(
             frame,
-            classes=[0],                   # person only
+            classes=[self.target_class],
             conf=settings.CONFIDENCE,
             iou=settings.IOU,
             tracker=settings.TRACKER,
@@ -175,6 +219,49 @@ class Detector:
         )
 
         result = results[0] if results else None
+        
+        # Use YOLO's annotated frame, or raw frame if no results
+        annotated = result.plot() if result else frame.copy()
+
+        # Overlay ROI geometry
+        if self.roi_type == "line":
+            pts = self._get_scaled_pts(frame.shape)
+            if len(pts) >= 2:
+                x1, y1 = pts[0]
+                x2, y2 = pts[1]
+                cv2.line(annotated, (int(x1), int(y1)), (int(x2), int(y2)), (255, 128, 0), 2)
+                
+                # Draw direction arrow if applicable
+                direction = self.roi_data.get('direction', 'both')
+                dx = x2 - x1
+                dy = y2 - y1
+                length = np.hypot(dx, dy)
+                if length > 0:
+                    nx = -dy / length
+                    ny = dx / length
+                    mx = (x1 + x2) / 2
+                    my = (y1 + y2) / 2
+                    offset = 15
+                    if direction in ('both', 'in'):
+                        cv2.arrowedLine(annotated, (int(mx + nx * offset), int(my + ny * offset)), (int(mx + nx * (offset+20)), int(my + ny * (offset+20))), (0, 255, 0), 2, tipLength=0.3)
+                    if direction in ('both', 'out'):
+                        cv2.arrowedLine(annotated, (int(mx - nx * offset), int(my - ny * offset)), (int(mx - nx * (offset+20)), int(my - ny * (offset+20))), (0, 0, 255), 2, tipLength=0.3)
+                    if direction == 'reversed':
+                        cv2.arrowedLine(annotated, (int(mx + nx * offset), int(my + ny * offset)), (int(mx + nx * (offset+20)), int(my + ny * (offset+20))), (0, 0, 255), 2, tipLength=0.3)
+                        cv2.arrowedLine(annotated, (int(mx - nx * offset), int(my - ny * offset)), (int(mx - nx * (offset+20)), int(my - ny * (offset+20))), (0, 255, 0), 2, tipLength=0.3)
+
+        elif self.roi_type == "rectangle":
+            pts = self._get_scaled_pts(frame.shape)
+            if len(pts) >= 2:
+                rx1, ry1 = pts[0]
+                rx2, ry2 = pts[1]
+                cv2.rectangle(annotated, (int(rx1), int(ry1)), (int(rx2), int(ry2)), (0, 255, 0), 2)
+                
+        elif self.roi_type == "polygon":
+            pts = self._get_scaled_pts(frame.shape)
+            if len(pts) >= 3:
+                poly_pts = np.array(pts, np.int32).reshape((-1, 1, 2))
+                cv2.polylines(annotated, [poly_pts], isClosed=True, color=(0, 255, 0), thickness=2)
 
         if result is not None and result.boxes is not None:
             boxes = result.boxes
@@ -208,7 +295,7 @@ class Detector:
             if self.roi_type in ("rectangle", "polygon"):
                 self.roi_occupancy = occupants
 
-        return frame
+        return annotated
 
     # ------------------------------------------------------------------
     # ROI helpers
@@ -253,7 +340,7 @@ class Detector:
                     else:
                         self.out_count += 1
                         
-                    db.log_event(self.camera_id, track_id, cross_type)
+                    db.log_event(self.camera_id, self.session_id, track_id, cross_type)
                     self._last_cross_time[track_id] = now
 
             self._prev_side[track_id] = side
