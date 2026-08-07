@@ -4,6 +4,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   initResponsiveNavigation();
+  initThemeToggle();
 
   const path = window.location.pathname;
 
@@ -114,7 +115,7 @@ async function initGlobalStatus() {
     <div class="system-status-title" style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">System Status</div>
     <div class="global-status-container" style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
       <span id="globalStatusIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
-      <span id="globalStatusText" style="color: var(--text-color);">Idle</span>
+      <span id="globalStatusText" style="color: var(--text-primary);">Idle</span>
     </div>
   `;
   
@@ -145,7 +146,7 @@ async function initGlobalStatus() {
               indicator.style.backgroundColor = 'var(--accent-green)';
               text.textContent = 'Counting Active';
             } else if (stats.status === 'loading') {
-              indicator.style.backgroundColor = 'var(--accent-orange)';
+              indicator.style.backgroundColor = 'var(--accent-yellow)';
               text.textContent = 'Loading Model...';
             } else {
               indicator.style.backgroundColor = 'var(--accent-blue)';
@@ -271,7 +272,7 @@ function initSessionControls(cameraId) {
           btnToggle.style.display = 'none';
           activeActionButtons.style.display = 'flex';
         } else if (currentStatus === 'loading') {
-          countingIndicator.style.backgroundColor = 'var(--accent-orange)';
+          countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
           countingText.textContent = 'Loading model plz wait...';
           btnToggle.style.display = 'none';
           activeActionButtons.style.display = 'none';
@@ -403,7 +404,7 @@ function initSessionControls(cameraId) {
     
     // Optimistic UI update
     currentStatus = 'loading';
-    countingIndicator.style.backgroundColor = 'var(--accent-orange)';
+    countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
     countingText.textContent = 'Loading model plz wait...';
     btnToggle.style.display = 'none';
     activeActionButtons.style.display = 'none';
@@ -466,65 +467,67 @@ async function initCameras() {
       
       const card = document.createElement('div');
       card.className = 'card camera-card';
+      card.style.padding = '0';
+      card.style.overflow = 'hidden';
       card.innerHTML = `
-        <div class="camera-card-header" style="padding: 16px 20px;">
-          <div class="camera-card-info" style="gap: 12px;">
-            <div class="camera-icon-wrapper" style="width: 40px; height: 40px; border-radius: 8px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+        <div class="camera-card-header" style="padding: 20px; border-bottom: 1px solid var(--border-subtle);">
+          <div class="camera-card-info" style="display: flex; gap: 16px; align-items: center;">
+            <div class="camera-icon-wrapper" style="width: 48px; height: 48px; border-radius: var(--radius-lg); background: var(--bg-input); display: flex; align-items: center; justify-content: center; color: var(--accent-blue); flex-shrink: 0;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
             </div>
-            <div>
-              <h2 class="camera-title" style="font-size: 15px; margin-bottom: 2px;">${cam.name}</h2>
-              <div class="camera-meta" style="font-size: 12px; gap: 8px;">
-                <span class="meta-item"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${cam.location}</span>
-                <span class="meta-divider">•</span>
-                <span class="meta-item">${statusBadge}</span>
+            <div style="flex: 1; min-width: 0;">
+              <h2 class="camera-title" style="font-size: 16px; font-weight: 600; margin: 0 0 4px 0; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cam.name}</h2>
+              <div class="camera-meta" style="font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+                <span class="meta-item" style="display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${cam.location}</span>
+                <span class="meta-divider" style="color: var(--border-subtle);">•</span>
+                <span class="meta-item" style="flex-shrink: 0;">${statusBadge}</span>
               </div>
             </div>
           </div>
           
-          <div class="camera-card-actions" style="gap: 6px;">
-            <button class="btn ${cam.running ? 'btn-success' : 'btn-primary'}" style="padding: 6px 12px; font-size: 12px;" onclick="toggleCamera(${cam.id}, ${cam.running})">
+          <div class="camera-card-actions" style="display: flex; gap: 8px; margin-top: 20px;">
+            <button class="btn ${cam.running ? 'btn-danger' : 'btn-success'}" style="flex: 1;" onclick="toggleCamera(${cam.id}, ${cam.running})">
               ${cam.running 
-                ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg> Stop' 
-                : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Start'}
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><rect x="6" y="6" width="12" height="12"></rect></svg> Stop' 
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Start'}
             </button>
-            <a href="/edit-camera/${cam.id}" class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;" title="Edit Camera"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit</a>
-            <a href="/roi/${cam.id}" class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;" title="ROI Setup"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg> ROI</a>
-            <button class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;" onclick="deleteCamera(${cam.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+            <a href="/edit-camera/${cam.id}" class="btn btn-outline" style="flex: 1; display: flex; justify-content: center; align-items: center;" title="Edit Camera"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit</a>
+            <a href="/roi/${cam.id}" class="btn btn-outline" style="flex: 1; display: flex; justify-content: center; align-items: center;" title="ROI Setup"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg> ROI</a>
+            <button class="btn btn-outline" style="padding: 0 14px; color: var(--danger); border-color: var(--danger-subtle);" onclick="deleteCamera(${cam.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
           </div>
         </div>
         
-        <div class="camera-card-stream-section" style="padding: 12px 16px 16px 16px;">
-          <div class="stream-header" style="margin-bottom: 10px;">
-            <div class="stream-title" style="font-size: 13px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 20 14.9"></path><path d="M8 11.899A3 3 0 1 1 16 11.9"></path><circle cx="12" cy="15" r="1"></circle></svg>
+        <div class="camera-card-stream-section" style="padding: 20px;">
+          <div class="stream-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="stream-title" style="font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: ${cam.running ? 'var(--accent-green)' : 'var(--text-muted)'}; display: inline-block;"></span>
               Live Feed
             </div>
-            <div class="stream-toggle-wrapper" style="font-size: 12px;">
+            <div class="stream-toggle-wrapper" style="font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
               <span>Stream</span>
-              <label class="switch" style="width: 36px; height: 20px;">
+              <label class="switch" style="width: 36px; height: 20px; margin: 0;">
                 <input type="checkbox" id="streamToggle_${cam.id}" ${!cam.running ? 'disabled' : ''}>
                 <span class="slider round"></span>
               </label>
             </div>
           </div>
           
-          <div class="video-wrapper" id="livePreviewContainer_${cam.id}">
-            <div class="video-offline">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; margin-bottom: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="10" y1="15" x2="10" y2="9"></line><line x1="14" y1="15" x2="14" y2="9"></line></svg>
-              <div style="font-size: 12px; color: var(--text-muted);">Stream paused to save bandwidth.</div>
+          <div class="video-wrapper" id="livePreviewContainer_${cam.id}" style="width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--radius-md); overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-subtle);">
+            <div class="video-offline" style="text-align: center; color: var(--text-muted);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; margin-bottom: 12px;"><circle cx="12" cy="12" r="10"></circle><line x1="10" y1="15" x2="10" y2="9"></line><line x1="14" y1="15" x2="14" y2="9"></line></svg>
+              <div style="font-size: 13px;">Stream paused to save bandwidth.</div>
             </div>
           </div>
         </div>
 
-        <div class="camera-card-footer" style="padding: 12px 16px; font-size: 11px;">
-          <div class="footer-left">
-            <span>ROI: ${cam.roi_type || 'None'}</span>
-            <span class="meta-divider">•</span>
-            <span>Added: ${createdDate}</span>
+        <div class="camera-card-footer" style="padding: 14px 20px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; background: var(--bg-surface);">
+          <div class="footer-left" style="display: flex; gap: 8px;">
+            <span>ROI: <span style="color: var(--text-primary); font-weight: 500;">${cam.roi_type || 'None'}</span></span>
+            <span class="meta-divider" style="color: var(--border-subtle);">•</span>
+            <span>Added: ${createdDate.split(' ')[0]}</span>
           </div>
           <div class="footer-right">
-            <span>Last Seen: ${lastSeenDate}</span>
+            <span>Seen: ${lastSeenDate.split(' ')[0]}</span>
           </div>
         </div>
       `;
@@ -769,12 +772,16 @@ async function initROI() {
   let isImageLoaded = false;
 
   // Load stream frame
+  const roiPlaceholder = document.getElementById('roiPlaceholder');
   img.onerror = () => {
     img.onerror = null;
     img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='100%' height='100%' fill='%23111'/><text x='50%' y='50%' font-family='sans-serif' font-size='16px' fill='%23666' text-anchor='middle' dominant-baseline='middle'>Camera Offline</text></svg>";
   };
   img.src = `/api/stream/${camId}?snapshot=1`;
   img.onload = () => {
+    if (roiPlaceholder) roiPlaceholder.style.display = 'none';
+    img.style.opacity = '1';
+
     canvas.width = img.clientWidth;
     canvas.height = img.clientHeight;
     isImageLoaded = true;
@@ -813,7 +820,7 @@ async function initROI() {
     return { x: evt.clientX - r.left, y: evt.clientY - r.top };
   }
 
-  function pointNear(px, py, x, y, r = 8) {
+  function pointNear(px, py, x, y, r = 30) {
     return Math.hypot(px - x, py - y) <= r;
   }
 
@@ -871,21 +878,22 @@ async function initROI() {
     draw();
   });
 
-  canvas.addEventListener('pointermove', (e) => {
-    const p = mousePos(e);
+  window.addEventListener('pointermove', (e) => {
     if (dragging && dragging.type === 'point') {
+      const p = mousePos(e);
       roiPoints[dragging.idx] = [p.x, p.y];
       draw();
       return;
     }
     
     if (drawing) {
+      const p = mousePos(e);
       tempPoint = [p.x, p.y];
       draw();
     }
   });
 
-  canvas.addEventListener('pointerup', (e) => {
+  window.addEventListener('pointerup', (e) => {
     dragging = null;
   });
 
@@ -1263,5 +1271,40 @@ function renderCharts(data) {
     lineCol.appendChild(lineWrapper);
     lineCol.appendChild(lineLabelDiv);
     lineContainer.appendChild(lineCol);
+  });
+}
+
+function initThemeToggle() {
+  const toggleBtn = document.getElementById('themeToggle');
+  if (!toggleBtn) return;
+  const iconDark = document.getElementById('themeIconDark');
+  const iconLight = document.getElementById('themeIconLight');
+
+  function applyThemeUI(theme) {
+    if (theme === 'light') {
+      iconLight.style.display = 'none';
+      iconDark.style.display = 'block';
+    } else {
+      iconLight.style.display = 'block';
+      iconDark.style.display = 'none';
+    }
+  }
+
+  let currentTheme = document.documentElement.getAttribute('data-theme');
+  if (!currentTheme) {
+    // Fallback if no attribute but script set something or prefers-color-scheme
+    currentTheme = 'dark'; // By default root is dark
+  }
+  applyThemeUI(currentTheme);
+
+  toggleBtn.addEventListener('click', () => {
+    let newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    if(newTheme === 'dark') {
+      document.documentElement.removeAttribute('data-theme'); // default to root
+    } else {
+      document.documentElement.setAttribute('data-theme', newTheme);
+    }
+    localStorage.setItem('app-theme', newTheme);
+    applyThemeUI(newTheme);
   });
 }
