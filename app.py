@@ -1,5 +1,5 @@
 """
-People Counter — FastAPI application entry point.
+Sack Counter — FastAPI application entry point.
 
 Run with:
     uvicorn app:app --host 0.0.0.0 --port 8000
@@ -24,6 +24,16 @@ from routes.stream import router as stream_router
 from routes.analytics import router as analytics_router
 from routes.sessions import router as sessions_router
 from config import settings
+from services.camera_manager import camera_manager
+from ultralytics import YOLO
+
+# PyTorch 2.6+ fix for ultralytics weights_only load
+import torch
+_original_load = torch.load
+def _unsafe_load(*args, **kwargs):
+    kwargs["weights_only"] = False
+    return _original_load(*args, **kwargs)
+torch.load = _unsafe_load
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -47,26 +57,24 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     db.init_db()
-    logger.info("People Counter starting — MAX_CAMERAS=%d", settings.MAX_CAMERAS)
+    logger.info("Sack Counter starting — MAX_CAMERAS=%d", settings.MAX_CAMERAS)
     
     # Resume active cameras
-    from services.camera_manager import camera_manager
     for cam in db.list_cameras():
         if cam.get("active") == 1:
             camera_manager.start_camera(cam["id"])
             
     yield
     # Shutdown
-    from services.camera_manager import camera_manager
     camera_manager.stop_all()
-    logger.info("People Counter stopped")
+    logger.info("Sack Counter stopped")
 
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="People Counter",
+    title="Sack Counter",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -80,6 +88,35 @@ app.include_router(stream_router)
 app.include_router(analytics_router)
 app.include_router(sessions_router)
 
+_cached_model_classes = None
+
+@app.get("/api/system/classes")
+def get_model_classes():
+    global _cached_model_classes
+    if _cached_model_classes is not None:
+        return _cached_model_classes
+    try:
+        model = YOLO(settings.MODEL)
+        _cached_model_classes = model.names
+        return _cached_model_classes
+    except Exception as e:
+        return {0: "Unknown (Error loading model)"}
+
+
+@app.get("/api/system/settings")
+def get_system_settings():
+    return {
+        "max_cameras": settings.MAX_CAMERAS,
+        "model": settings.MODEL,
+        "confidence": settings.CONFIDENCE,
+        "iou": settings.IOU,
+        "tracker": settings.TRACKER,
+        "frame_rate": settings.FRAME_RATE,
+        "jpeg_quality": settings.JPEG_QUALITY,
+        "reconnect_delay": settings.RECONNECT_DELAY,
+        "log_level": settings.LOG_LEVEL,
+    }
+
 
 # ---------------------------------------------------------------------------
 # Page routes — serve HTML templates
@@ -88,7 +125,11 @@ TEMPLATES = "templates"
 
 
 def _html(name: str):
-    return FileResponse(os.path.join(TEMPLATES, name))
+    response = FileResponse(os.path.join(TEMPLATES, name))
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.get("/")
@@ -106,6 +147,11 @@ def add_camera_page():
     return _html("add_camera.html")
 
 
+@app.get("/edit-camera/{camera_id}")
+def edit_camera_page(camera_id: int):
+    return _html("edit_camera.html")
+
+
 @app.get("/roi/{camera_id}")
 def roi_page(camera_id: int):
     return _html("roi.html")
@@ -118,6 +164,10 @@ def settings_page():
 @app.get("/sessions")
 def sessions_page():
     return _html("sessions.html")
+
+@app.get("/session-logs")
+def session_logs_page():
+    return _html("session_logs.html")
 
 
 # ---------------------------------------------------------------------------

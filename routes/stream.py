@@ -22,7 +22,6 @@ async def _mjpeg_generator(camera_id: int):
         yield b""
         return
 
-    frame_delay = 1.0 / settings.FRAME_RATE
     last_frame_id = -1
     while True:
         if det.frame_id == last_frame_id:
@@ -30,24 +29,32 @@ async def _mjpeg_generator(camera_id: int):
             continue
             
         last_frame_id = det.frame_id
-        frame = det.get_frame()
-        if frame is None:
-            await asyncio.sleep(0.1)
-            continue
+        
+        # Retrieve pre-compressed JPEG frame from background thread to avoid CPU encoding inside async loop
+        jpeg_data = None
+        with det._lock:
+            if hasattr(det, "_jpeg_frame"):
+                jpeg_data = det._jpeg_frame
 
-        ret, buf = cv2.imencode(
-            ".jpg", frame,
-            [cv2.IMWRITE_JPEG_QUALITY, settings.JPEG_QUALITY],
-        )
-        if not ret:
-            await asyncio.sleep(0.05)
-            continue
+        if jpeg_data is None:
+            # Fallback if pre-compressed frame is not available yet
+            frame = det.get_frame()
+            if frame is None:
+                await asyncio.sleep(0.05)
+                continue
+            ret, buf = cv2.imencode(
+                ".jpg", frame,
+                [cv2.IMWRITE_JPEG_QUALITY, settings.JPEG_QUALITY],
+            )
+            if not ret:
+                await asyncio.sleep(0.05)
+                continue
+            jpeg_data = buf.tobytes()
 
-        data = buf.tobytes()
         yield (
             b"--frame\r\n"
             b"Content-Type: image/jpeg\r\n\r\n"
-            + data
+            + jpeg_data
             + b"\r\n"
         )
 

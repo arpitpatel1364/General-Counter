@@ -3,12 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>People Counter - Laps / Sessions</title>
+  <title>Sack Counter - Laps / Sessions</title>
   <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=14">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 26px; max-width: 100%;">
+    </div>
+    <nav>
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/sessions" class="nav-link active">Laps / Sessions</a>
+      <a href="/session-logs" class="nav-link">Session Logs</a>
+      <a href="/cameras" class="nav-link">Cameras</a>
+      <a href="/settings" class="nav-link">Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
+    </div>
+  </aside>
+
+  <main class="main">
   <style>
     .session-grid {
       display: grid;
@@ -18,11 +38,14 @@
     }
     .session-card {
       position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .session-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-strong);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
     }
     .session-status {
-      position: absolute;
-      top: 16px;
-      right: 16px;
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
@@ -62,25 +85,6 @@
       color: var(--text-primary);
     }
   </style>
-</head>
-<body>
-
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
-    </div>
-    <nav>
-      <a href="/" class="nav-link">Dashboard</a>
-      <a href="/sessions" class="nav-link active">Laps / Sessions</a>
-      <a href="/cameras" class="nav-link">Cameras</a>
-      <a href="/settings" class="nav-link">Settings</a>
-    </nav>
-    <div class="sidebar-footer">
-      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
-    </div>
-  </aside>
-
-  <main class="main">
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
       <h1>Laps / Sessions</h1>
       <button id="btnNewSession" class="btn btn-primary" style="display: none;">Start New Lap</button>
@@ -118,23 +122,7 @@
         <label for="targetClass">Target Object</label>
         <div style="display: flex; gap: 8px; margin-top: 8px;">
           <select id="targetClass" class="form-control" style="width: 100%;">
-            <option value="0">Person</option>
-            <option value="1">Bicycle</option>
-            <option value="2">Car</option>
-            <option value="3">Motorcycle</option>
-            <option value="5">Bus</option>
-            <option value="7">Truck</option>
-            <option value="15">Cat</option>
-            <option value="16">Dog</option>
-            <option value="24">Backpack</option>
-            <option value="26">Handbag</option>
-            <option value="28">Suitcase</option>
-            <option value="39">Bottle</option>
-            <option value="41">Cup</option>
-            <option value="56">Chair</option>
-            <option value="63">Laptop</option>
-            <option value="67">Cell Phone</option>
-            <option value="73">Book</option>
+            <option value="0">Sack</option>
           </select>
         </div>
       </div>
@@ -165,7 +153,7 @@
   <div id="sessionTooltip" class="chart-tooltip" style="display:none; position:absolute; z-index: 2000;"></div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
+    (async () => {
       const cameraSelect = document.getElementById("cameraSelect");
       const sessionsGrid = document.getElementById("sessionsGrid");
       const emptyState = document.getElementById("emptyState");
@@ -383,39 +371,50 @@
             const statusClass = s.status === 'active' ? 'status-active' : 'status-closed';
             const statusText = s.status === 'active' ? 'Active' : 'Closed';
             
-            const actionButton = s.status === 'active'
-              ? `<button onclick="stopSession(${s.camera_id})" class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" title="Stop Counting">⏹ Stop</button>`
-              : `<button onclick="resumeSession(${s.id})" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;" title="Resume Counting">▶ Resume</button>`;
+            const actionButtonHtml = s.status === 'active'
+              ? `<button onclick="stopSession(${s.camera_id})" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" title="Stop Counting"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px; vertical-align: middle;"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect></svg>Stop</button>`
+              : `<button onclick="resumeSession(${s.id})" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" title="Resume Counting"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px; vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>Resume</button>`;
             
             const card = document.createElement("div");
             card.className = "card session-card";
+            card.style = "display: flex; flex-direction: column; height: 100%; min-height: 240px;";
             card.innerHTML = `
-              <div class="session-status ${statusClass}" style="display: flex; gap: 8px; align-items: center; right: 16px;">
-                ${statusText}
+              <div class="session-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary); word-break: break-all;">${s.name}</h3>
+                <span class="session-status ${statusClass}" style="position: static; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: var(--radius-full); line-height: 1;">
+                  ${statusText}
+                </span>
               </div>
-              <div style="display: flex; gap: 8px; align-items: flex-start; padding-right: 80px;">
-                <h3 style="margin-top: 0; margin-bottom: 4px; font-size: 16px; word-break: break-all;">${s.name}</h3>
-                <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-outline" style="padding: 2px 6px; font-size: 10px; border: none;" title="Edit Name">✎</button>
-                ${actionButton}
+              <div class="session-card-meta" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span>Started: <span style="color: var(--text-primary);">${date}</span></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <span>Ended: <span style="color: var(--text-primary);">${closedDate}</span></span>
+                </div>
               </div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px;">Started: ${date}</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Ended: ${closedDate}</div>
               
-              <div class="session-stats">
-                <div class="stat-box">
-                  <div class="stat-label">In</div>
-                  <div class="stat-val" style="color: var(--accent-green);">${s.total_in}</div>
+              <div class="session-card-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; background: var(--bg-input); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 16px; margin-top: auto;">
+                <div style="text-align: center; border-right: 1px solid var(--border-subtle); padding-right: 4px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Total In</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--accent-green); margin-top: 2px;">${s.total_in}</div>
                 </div>
-                <div class="stat-box">
-                  <div class="stat-label">Out</div>
-                  <div class="stat-val" style="color: var(--accent-red);">${s.total_out}</div>
+                <div style="text-align: center; padding-left: 4px;">
+                  <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Total Out</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--accent-red); margin-top: 2px;">${s.total_out}</div>
                 </div>
               </div>
-              <div style="margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-                 <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="width: 100%; font-size: 12px;">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: text-bottom;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                   View Analytics
-                 </button>
+              <div class="session-card-actions" style="display: flex; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 14px; align-items: center;">
+                <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-outline" style="padding: 6px 10px; flex: 1; font-size: 12px;" title="Rename Lap">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  Rename
+                </button>
+                ${actionButtonHtml}
+                <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" title="View Analytics">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                </button>
               </div>
             `;
             sessionsGrid.appendChild(card);
@@ -424,7 +423,8 @@
           console.error("Failed to load sessions", err);
         }
       }
-    });
+    })();
   </script>
+  <script src="/static/js/main.js?v=14"></script>
 </body>
 </html>

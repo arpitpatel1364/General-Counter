@@ -56,6 +56,21 @@ def get_camera(camera_id: int):
     return cam
 
 
+@router.put("/{camera_id}")
+def update_camera(camera_id: int, payload: CameraCreate):
+    cam = db.get_camera(camera_id)
+    if not cam:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    db.update_camera_info(camera_id, payload.name, payload.location, payload.rtsp_url)
+    
+    # If the camera is running, restart it to apply the new RTSP URL
+    if camera_id in camera_manager.active_camera_ids():
+        camera_manager.stop_camera(camera_id, manual=False)
+        camera_manager.start_camera(camera_id)
+        
+    return {"message": "Camera updated"}
+
+
 @router.delete("/{camera_id}")
 def delete_camera(camera_id: int):
     camera_manager.stop_camera(camera_id)

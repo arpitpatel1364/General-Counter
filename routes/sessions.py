@@ -19,13 +19,17 @@ class SessionStop(BaseModel):
 class SessionRename(BaseModel):
     name: str
 
-@router.get("/{camera_id}")
-def get_sessions(camera_id: int):
-    return db.list_sessions(camera_id)
-
 @router.get("")
 def get_all_sessions():
     return db.list_sessions()
+
+@router.get("/activity-logs")
+def get_activity_logs():
+    return db.list_session_activity_logs()
+
+@router.get("/{camera_id}")
+def get_sessions(camera_id: int):
+    return db.list_sessions(camera_id)
 
 @router.post("/start")
 def start_session(payload: SessionStart):
@@ -66,6 +70,9 @@ def resume_session(session_id: int):
 
 @router.post("/pause")
 def pause_session(payload: SessionStop):
+    active = db.get_active_session(payload.camera_id)
+    if active:
+        db.log_session_activity(active['id'], 'pause', 'Session counting paused')
     camera_manager.stop_counting(payload.camera_id)
     return {"message": "Session paused"}
 

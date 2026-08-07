@@ -107,11 +107,22 @@ def init_db():
             created_at      TEXT    DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS session_activity_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id  INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
+            activity    TEXT    NOT NULL,
+            details     TEXT,
+            timestamp   TEXT    DEFAULT (datetime('now'))
+        );
+
         CREATE INDEX IF NOT EXISTS idx_logs_camera_ts
             ON detection_logs (camera_id, timestamp);
 
         CREATE INDEX IF NOT EXISTS idx_logs_event
             ON detection_logs (event_type, timestamp);
+
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_session
+            ON session_activity_logs (session_id);
         """)
         
         # Safe schema upgrades for existing DBs
@@ -122,6 +133,16 @@ def init_db():
             
         try:
             conn.execute("ALTER TABLE detection_logs ADD COLUMN session_id INTEGER REFERENCES sessions(id)")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        try:
+            conn.execute("ALTER TABLE detection_logs ADD COLUMN person_track_id INTEGER")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        try:
+            conn.execute("ALTER TABLE detection_logs ADD COLUMN roi_name TEXT")
         except sqlite3.OperationalError:
             pass # Column exists
             
@@ -189,6 +210,14 @@ def set_camera_active(camera_id: int, active: bool):
         conn.execute("UPDATE cameras SET active=? WHERE id=?", (int(active), camera_id))
 
 
+def update_camera_info(camera_id: int, name: str, location: str, rtsp_url: str):
+    with db() as conn:
+        conn.execute(
+            "UPDATE cameras SET name=?, location=?, rtsp_url=? WHERE id=?",
+            (name, location, rtsp_url, camera_id)
+        )
+
+
 # ---------------------------------------------------------------------------
 # Detection log helpers
 # ---------------------------------------------------------------------------
@@ -215,29 +244,59 @@ def log_events_batch(events: list):
 
 def create_session(camera_id: int, name: str, target_class: int = 0) -> int:
     with db() as conn:
-        # Close any active session for this camera
-        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+        # Close any active session for this camera and log it
+        active_row = conn.execute("SELECT id, name FROM sessions WHERE camera_id=? AND status='active'", (camera_id,)).fetchone()
+        if active_row:
+            active_id = active_row['id']
+            active_name = active_row['name']
+            conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE id=?", (active_id,))
+            conn.execute(
+                "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+                (active_id, 'stop', f"Session '{active_name}' stopped automatically")
+            )
+
         cur = conn.execute(
             "INSERT INTO sessions (camera_id, name, target_class, status) VALUES (?,?,?,?)",
             (camera_id, name, target_class, 'active')
         )
-    return cur.lastrowid
+        session_id = cur.lastrowid
+        
+        # Log start activity
+        conn.execute(
+            "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+            (session_id, 'start', f"Session '{name}' started")
+        )
+    return session_id
 
 def resume_session(session_id: int):
     with db() as conn:
-        # Get the camera_id and target_class for this session
-        row = conn.execute("SELECT camera_id, target_class FROM sessions WHERE id=?", (session_id,)).fetchone()
+        # Get the camera_id, target_class, and name for this session
+        row = conn.execute("SELECT camera_id, target_class, name FROM sessions WHERE id=?", (session_id,)).fetchone()
         if not row:
             return
         
         camera_id = row['camera_id']
         target_class = row['target_class']
+        name = row['name']
         
-        # Close any active session for this camera
-        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+        # Close any active session for this camera and log it
+        active_row = conn.execute("SELECT id, name FROM sessions WHERE camera_id=? AND status='active'", (camera_id,)).fetchone()
+        if active_row:
+            active_id = active_row['id']
+            active_name = active_row['name']
+            conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE id=?", (active_id,))
+            conn.execute(
+                "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+                (active_id, 'stop', f"Session '{active_name}' stopped automatically")
+            )
         
         # Resume this session
         conn.execute("UPDATE sessions SET status='active', closed_at=NULL WHERE id=?", (session_id,))
+        # Log resume activity
+        conn.execute(
+            "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+            (session_id, 'resume', f"Session '{name}' resumed")
+        )
         
         # Update the camera's target class to match
         conn.execute("UPDATE cameras SET target_class=? WHERE id=?", (target_class, camera_id))
@@ -246,7 +305,16 @@ def resume_session(session_id: int):
 
 def close_active_session(camera_id: int):
     with db() as conn:
-        conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE camera_id=? AND status='active'", (camera_id,))
+        active_row = conn.execute("SELECT id, name FROM sessions WHERE camera_id=? AND status='active'", (camera_id,)).fetchone()
+        if active_row:
+            active_id = active_row['id']
+            active_name = active_row['name']
+            conn.execute("UPDATE sessions SET status='closed', closed_at=datetime('now') WHERE id=?", (active_id,))
+            # Log stop activity
+            conn.execute(
+                "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+                (active_id, 'stop', f"Session '{active_name}' stopped")
+            )
 
 def get_active_session(camera_id: int):
     with db() as conn:
@@ -277,7 +345,37 @@ def list_sessions(camera_id: int = None):
 
 def rename_session(session_id: int, new_name: str):
     with db() as conn:
+        row = conn.execute("SELECT name FROM sessions WHERE id=?", (session_id,)).fetchone()
+        old_name = row['name'] if row else ''
         conn.execute("UPDATE sessions SET name=? WHERE id=?", (new_name, session_id))
+        # Log rename activity
+        conn.execute(
+            "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+            (session_id, 'rename', f"Session renamed from '{old_name}' to '{new_name}'")
+        )
+
+def log_session_activity(session_id: int, activity: str, details: str):
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO session_activity_logs (session_id, activity, details) VALUES (?, ?, ?)",
+            (session_id, activity, details)
+        )
+
+def list_session_activity_logs():
+    with db() as conn:
+        rows = conn.execute("""
+            SELECT 
+                sal.timestamp,
+                c.name AS camera_name,
+                s.name AS session_name,
+                sal.activity,
+                sal.details
+            FROM session_activity_logs sal
+            LEFT JOIN sessions s ON sal.session_id = s.id
+            LEFT JOIN cameras c ON s.camera_id = c.id
+            ORDER BY sal.timestamp DESC
+        """).fetchall()
+    return [dict(r) for r in rows]
 
 def analytics_for_session(session_id: int):
     """Returns list of {time_slice, in_count, out_count} for a specific session."""
@@ -318,6 +416,22 @@ def analytics_today(camera_id: int):
         f"{today} 00:00:00",
         f"{today} 23:59:59",
     )
+
+
+def global_analytics_today():
+    today = date.today().isoformat()
+    start = f"{today} 00:00:00"
+    end = f"{today} 23:59:59"
+    with db() as conn:
+        row = conn.execute(
+            """SELECT
+                 SUM(CASE WHEN event_type='IN'  THEN 1 ELSE 0 END) AS total_in,
+                 SUM(CASE WHEN event_type='OUT' THEN 1 ELSE 0 END) AS total_out
+               FROM detection_logs
+               WHERE timestamp BETWEEN ? AND ?""",
+            (start, end),
+        ).fetchone()
+    return {"total_in": row["total_in"] or 0, "total_out": row["total_out"] or 0}
 
 
 def analytics_hourly(camera_id: int, date: str):

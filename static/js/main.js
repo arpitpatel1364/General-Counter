@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initCameras();
   } else if (path === '/add-camera') {
     initAddCamera();
+  } else if (path.startsWith('/edit-camera/')) {
+    initEditCamera();
   } else if (path.startsWith('/roi/')) {
     initROI();
   } else if (path === '/analytics') {
@@ -51,7 +53,7 @@ async function initGlobalStatus() {
 
   async function pollGlobalStatus() {
     try {
-      const res = await fetch('/api/cameras');
+      const res = await fetch('/api/cameras?t=' + Date.now());
       if (res.ok) {
         const cameras = await res.json();
         const activeCams = cameras.filter(c => c.running);
@@ -61,7 +63,7 @@ async function initGlobalStatus() {
         
         if (activeCams.length > 0) {
           // Check stats for the first active camera to see if it's counting or loading
-          const statRes = await fetch('/api/cameras/' + activeCams[0].id + '/stats');
+          const statRes = await fetch('/api/cameras/' + activeCams[0].id + '/stats?t=' + Date.now());
           if (statRes.ok) {
             const stats = await statRes.json();
             if (stats.status === 'running') {
@@ -95,7 +97,7 @@ let activeCameraId = null;
 
 async function fetchSummary() {
   try {
-    const res = await fetch('/api/analytics/summary');
+    const res = await fetch('/api/analytics/summary?t=' + Date.now());
     if (res.ok) {
       const data = await res.json();
       const elTotalIn = document.getElementById('statTotalIn');
@@ -124,7 +126,6 @@ async function fetchSummary() {
 }
 
 async function initDashboard() {
-  const pollToggle = document.getElementById('pollToggle');
   const chartWrapper = document.getElementById('analyticsContentWrapper');
   const placeholder = document.getElementById('analyticsPlaceholder');
   const timeRangeSeg = document.getElementById('timeRangeSegmented');
@@ -140,26 +141,10 @@ async function initDashboard() {
     }
   }
 
-  if (pollToggle) {
-    updateVisibility(pollToggle.checked);
-    if (pollToggle.checked) {
-      await fetchSummary();
-      dashboardInterval = setInterval(fetchSummary, 3000);
-    }
-    
-    pollToggle.addEventListener('change', async (e) => {
-      const isOn = e.target.checked;
-      updateVisibility(isOn);
-      
-      if (isOn) {
-        await fetchSummary();
-        dashboardInterval = setInterval(fetchSummary, 3000);
-        loadChartData()
-      } else {
-        clearInterval(dashboardInterval);
-      }
-    });
-  }
+  // Always enable live dashboard stats by default
+  updateVisibility(true);
+  await fetchSummary();
+  dashboardInterval = setInterval(fetchSummary, 3000);
 
   try {
     const camRes = await fetch('/api/cameras');
@@ -198,7 +183,7 @@ function initSessionControls(cameraId) {
 
   async function pollStatus() {
     try {
-      const res = await fetch(`/api/cameras/${cameraId}/stats`);
+      const res = await fetch(`/api/cameras/${cameraId}/stats?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         currentStatus = data.status;
@@ -234,15 +219,14 @@ function initSessionControls(cameraId) {
   pollStatus();
 
   btnToggle.addEventListener('click', async () => {
-    if (currentStatus === 'stopped') {
-      // Open modal
-      inputName.value = '';
-      existingSessionSelect.innerHTML = '<option value="">-- Create New Lap --</option>';
-      newSessionFields.style.display = 'block';
-      
-      // Fetch existing sessions
-      try {
-        const res = await fetch(`/api/sessions/${cameraId}`);
+    // Open modal
+    inputName.value = '';
+    existingSessionSelect.innerHTML = '<option value="">-- Create New Lap --</option>';
+    newSessionFields.style.display = 'block';
+    
+    // Fetch existing sessions
+    try {
+      const res = await fetch(`/api/sessions/${cameraId}?t=${Date.now()}`);
         if (res.ok) {
           const sessions = await res.json();
           sessions.forEach(s => {
@@ -255,7 +239,6 @@ function initSessionControls(cameraId) {
       } catch (err) { console.error('Failed to fetch sessions', err); }
       
       modal.style.display = 'flex';
-    }
   });
 
   existingSessionSelect?.addEventListener('change', (e) => {
@@ -267,38 +250,60 @@ function initSessionControls(cameraId) {
   });
 
   btnPauseCount?.addEventListener('click', async () => {
-    if (currentStatus === 'running') {
-      currentStatus = 'stopped';
-      countingIndicator.style.backgroundColor = 'var(--text-muted)';
-      countingText.textContent = 'Stopping...';
-      activeActionButtons.style.display = 'none';
-      
-      try {
-        await fetch('/api/sessions/pause', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({camera_id: cameraId})
-        });
+    btnPauseCount.disabled = true;
+    if (btnExitSession) btnExitSession.disabled = true;
+    countingText.textContent = 'Pausing...';
+    
+    try {
+      const res = await fetch('/api/sessions/pause', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({camera_id: cameraId})
+      });
+      if (res.ok) {
+        currentStatus = 'stopped';
         pollStatus();
-      } catch (err) { console.error(err); }
+      } else {
+        alert('Failed to pause counting. Please try again.');
+        pollStatus();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error. Failed to pause counting.');
+      pollStatus();
+    } finally {
+      btnPauseCount.disabled = false;
+      if (btnExitSession) btnExitSession.disabled = false;
     }
   });
 
   btnExitSession?.addEventListener('click', async () => {
-    if (currentStatus === 'running') {
-      currentStatus = 'stopped';
-      countingIndicator.style.backgroundColor = 'var(--text-muted)';
-      countingText.textContent = 'Exiting...';
-      activeActionButtons.style.display = 'none';
-      
-      try {
-        await fetch('/api/sessions/stop', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({camera_id: cameraId})
-        });
+    if (!confirm('Are you sure you want to exit the current lap?')) return;
+    
+    if (btnPauseCount) btnPauseCount.disabled = true;
+    btnExitSession.disabled = true;
+    countingText.textContent = 'Exiting...';
+    
+    try {
+      const res = await fetch('/api/sessions/stop', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({camera_id: cameraId})
+      });
+      if (res.ok) {
+        currentStatus = 'stopped';
         pollStatus();
-      } catch (err) { console.error(err); }
+      } else {
+        alert('Failed to exit session. Please try again.');
+        pollStatus();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error. Failed to exit session.');
+      pollStatus();
+    } finally {
+      if (btnPauseCount) btnPauseCount.disabled = false;
+      btnExitSession.disabled = false;
     }
   });
 
@@ -408,6 +413,7 @@ async function initCameras() {
                 ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg> Stop' 
                 : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Start'}
             </button>
+            <a href="/edit-camera/${cam.id}" class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;" title="Edit Camera"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit</a>
             <a href="/roi/${cam.id}" class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;" title="ROI Setup"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg> ROI</a>
             <button class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;" onclick="deleteCamera(${cam.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
           </div>
@@ -496,6 +502,57 @@ async function deleteCamera(id) {
   } catch (err) {
     console.error(err);
   }
+}
+
+// --- Edit Camera ---
+function initEditCamera() {
+  const form = document.getElementById('editCameraForm');
+  if (!form) return;
+
+  const camId = window.location.pathname.split('/').pop();
+
+  // Load existing camera details
+  (async () => {
+    try {
+      const res = await fetch(`/api/cameras/${camId}?t=${Date.now()}`);
+      if (res.ok) {
+        const cam = await res.json();
+        document.getElementById('camName').value = cam.name;
+        document.getElementById('camLocation').value = cam.location;
+        document.getElementById('camRtsp').value = cam.rtsp_url;
+      } else {
+        alert('Failed to load camera configuration.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  })();
+
+  // Handle form submission
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('camName').value,
+      location: document.getElementById('camLocation').value,
+      rtsp_url: document.getElementById('camRtsp').value
+    };
+
+    try {
+      const res = await fetch(`/api/cameras/${camId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        window.location.href = '/cameras';
+      } else {
+        const data = await res.json();
+        alert(data.detail || 'Failed to update camera');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
 }
 
 // --- Add Camera ---

@@ -72,6 +72,7 @@ class Detector:
         self.session_id = None
 
         self._frame: Optional[np.ndarray] = None
+        self._jpeg_frame: Optional[bytes] = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
 
@@ -86,6 +87,7 @@ class Detector:
         # Line-crossing state: track_id -> last signed side
         self._prev_side: dict[int, float] = {}
         self._last_cross_time: dict[int, float] = {}
+        self._last_seen_time: dict[int, float] = {}
         self._prev_inside_ids: set[int] = set()
 
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -121,6 +123,14 @@ class Detector:
             try:
                 logger.info("Camera %d: Loading model...", self.camera_id)
                 model = YOLO(settings.MODEL)
+                
+                # Warm up model if CUDA is available to initialize CUDA context in the background thread
+                if torch.cuda.is_available():
+                    logger.info("Camera %d: Warmup YOLO model on GPU...", self.camera_id)
+                    dummy = np.zeros((settings.IMGSZ, settings.IMGSZ, 3), dtype=np.uint8)
+                    model(dummy, verbose=False, device=0, quantize=16)
+                    logger.info("Camera %d: GPU warmup complete.", self.camera_id)
+                    
                 with self._lock:
                     if self.status == "loading": # in case stop was called during load
                         self.model = model
@@ -159,26 +169,58 @@ class Detector:
                 continue
 
             self.online = True
-            db.set_camera_active(self.camera_id, True)
             t_prev = time.time()
             frame_count = 0
 
             retry_count = 0
-
-            while not self._stop.is_set():
-                ret, frame = cap.read()
-                if not ret:
-                    retry_count += 1
-                    if retry_count > 30:
-                        logger.warning("Camera %d: lost frame — reconnecting", self.camera_id)
-                        break
-                    time.sleep(0.1)
-                    continue
-                else:
+            latest_frame = None
+            frame_lock = threading.Lock()
+            
+            reader_thread_stop = False
+            reader_frame_id = 0
+            
+            # Start a dedicated frame reader thread to prevent OpenCV buffer latency
+            def frame_reader():
+                nonlocal retry_count, latest_frame, reader_thread_stop, reader_frame_id
+                while not self._stop.is_set() and not reader_thread_stop and cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        retry_count += 1
+                        if retry_count > 30:
+                            break
+                        time.sleep(0.05)
+                        continue
                     retry_count = 0
+                    with frame_lock:
+                        latest_frame = frame
+                        reader_frame_id += 1
+
+            reader_thread = threading.Thread(target=frame_reader, daemon=True)
+            reader_thread.start()
+
+            last_process_time = 0
+            last_processed_id = -1
+
+            while not self._stop.is_set() and reader_thread.is_alive():
+                now = time.time()
+                target_delay = 1.0 / settings.FRAME_RATE
+                
+                # Prevent busy-waiting: sleep if we are too early for the next frame
+                time_since_last = now - last_process_time
+                if time_since_last < target_delay:
+                    sleep_time = min(target_delay - time_since_last, 0.05)
+                    if sleep_time > 0.001:
+                        time.sleep(sleep_time)
+                    continue
                     
-                # Drop oldest buffered frame to prevent lag accumulation
-                # cap.grab()
+                with frame_lock:
+                    if latest_frame is None or reader_frame_id == last_processed_id:
+                        time.sleep(0.01)
+                        continue
+                    frame = latest_frame.copy()
+                    last_processed_id = reader_frame_id
+                    
+                last_process_time = now
 
                 try:
                     annotated = self._process(frame)
@@ -187,32 +229,47 @@ class Detector:
                     annotated = frame.copy()
 
                 frame_count += 1
-                now = time.time()
-                elapsed = now - t_prev
-                if elapsed >= 1.0:
-                    self.fps = frame_count / elapsed
+                if now - t_prev >= 1.0:
+                    self.fps = frame_count / (now - t_prev)
                     frame_count = 0
                     t_prev = now
 
-                # Throttle to configured FPS
+                # Compress to JPEG once in background thread to avoid blocking FastAPI event loop
+                jpeg_bytes = None
+                if annotated is not None:
+                    ret, buf = cv2.imencode(
+                        ".jpg", annotated,
+                        [cv2.IMWRITE_JPEG_QUALITY, settings.JPEG_QUALITY],
+                    )
+                    if ret:
+                        jpeg_bytes = buf.tobytes()
+
+                # Update the stream frame
                 with self._lock:
                     self._frame = annotated
+                    self._jpeg_frame = jpeg_bytes
                     self.frame_id += 1
+                
+                # Small sleep to prevent maxing out CPU when idle
+                time.sleep(0.005)
 
-                target_delay = 1.0 / settings.FRAME_RATE
-                time.sleep(max(0, target_delay - (time.time() - now)))
-
+            was_stopped = self._stop.is_set()
+            
+            # Stop the reader thread
+            reader_thread_stop = True
+            reader_thread.join(timeout=1.0)
+            
             cap.release()
             self.online = False
-            db.set_camera_active(self.camera_id, False)
-            if not self._stop.is_set():
-                logger.info("Camera %d: reconnecting in %ds", self.camera_id, settings.RECONNECT_DELAY)
+            if not was_stopped and not self._stop.is_set():
+                logger.warning("Camera %d: lost frame — reconnecting in %ds", self.camera_id, settings.RECONNECT_DELAY)
                 time.sleep(settings.RECONNECT_DELAY)
 
     def _open_stream(self) -> Optional[cv2.VideoCapture]:
         logger.info("Camera %d: connecting to %s", self.camera_id, self.rtsp_url)
         import os
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+        # Set low latency flags to prevent internal FFmpeg/OpenCV buffering lag
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|fflags;nobuffer|max_delay;500000"
         cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if not cap.isOpened():
@@ -229,6 +286,10 @@ class Detector:
         imgsz = settings.IMGSZ
         target_classes = None if self.target_class == -1 else [self.target_class]
         
+        # Detect device and precision dynamically for optimal performance
+        device = 0 if torch.cuda.is_available() else "cpu"
+        use_quantize = 16 if torch.cuda.is_available() else None
+        
         results = self.model.track(
             frame,
             classes=target_classes,
@@ -238,6 +299,8 @@ class Detector:
             imgsz=imgsz,
             persist=True,
             verbose=False,
+            device=device,
+            quantize=use_quantize
         )
 
         result = results[0] if results else None
@@ -291,19 +354,22 @@ class Detector:
             with self._lock:
                 current_inside_ids = set()
                 occupants = 0
+                now = time.time()
                 
                 # Prune stale tracks periodically to prevent memory leaks while keeping history
                 if len(self._prev_side) > 2000:
-                    now = time.time()
-                    self._prev_side = {k: v for k, v in self._prev_side.items() if now - self._last_cross_time.get(k, 0) < 300}
+                    self._prev_side = {k: v for k, v in self._prev_side.items() if now - self._last_seen_time.get(k, 0) < 300}
                     self._last_cross_time = {k: v for k, v in self._last_cross_time.items() if now - v < 300}
+                    self._last_seen_time = {k: v for k, v in self._last_seen_time.items() if now - v < 300}
 
                 for i, box in enumerate(boxes.xyxy):
                     x1, y1, x2, y2 = map(int, box.tolist())
                     
                     # Use foot point (bottom-center) for crossing logic
                     cx, cy = (x1 + x2) // 2, y2
-                    track_id = int(ids[i].item()) if ids is not None else -1
+                    track_id = int(ids[i].item()) if (ids is not None and len(ids) > i) else -1
+                    if track_id >= 0:
+                        self._last_seen_time[track_id] = now
 
                     # ROI logic
                     if self.roi_type == "line" and track_id >= 0:
@@ -401,5 +467,3 @@ class Detector:
                 self._last_cross_time[tid] = now
                 
         self._prev_inside_ids = current_inside_ids
-
-

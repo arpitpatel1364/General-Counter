@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>People Counter - Dashboard</title>
+  <title>Sack Counter - Dashboard</title>
   <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=14">
 </head>
 <body>
 
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 26px; max-width: 100%;">
     </div>
     <nav>
       <a href="/" class="nav-link active">Dashboard</a>
       <a href="/sessions" class="nav-link">Laps / Sessions</a>
+      <a href="/session-logs" class="nav-link">Session Logs</a>
       <a href="/cameras" class="nav-link">Cameras</a>
       <a href="/settings" class="nav-link">Settings</a>
     </nav>
@@ -31,23 +32,15 @@
     <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
       <h1>Dashboard</h1>
       <div class="toggle-container" style="display: flex; align-items: center; gap: 16px;">
-        <div id="countingStatus" style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
-          <span id="countingIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
-          <span id="countingText">Stopped</span>
+        <div id="countingStatus" style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; background: var(--bg-input); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-subtle);">
+          <span id="countingIndicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); box-shadow: 0 0 8px rgba(107, 107, 116, 0.4);"></span>
+          <span id="countingText" style="color: var(--text-secondary);">Stopped</span>
         </div>
         <button id="btnToggleCount" class="btn btn-primary" style="display: none;">Start Counting</button>
         <div id="activeActionButtons" style="display: none; gap: 8px;">
           <button id="btnPauseCount" class="btn btn-secondary">Pause</button>
           <button id="btnExitSession" class="btn btn-primary" style="background: var(--accent-red); border-color: var(--accent-red);">Exit Session</button>
         </div>
-        
-        <div style="width: 1px; height: 24px; background: var(--border-subtle); margin: 0 8px;"></div>
-        
-        <label for="pollToggle">Live Analytics:</label>
-        <label class="switch">
-          <input type="checkbox" id="pollToggle">
-          <span class="slider round"></span>
-        </label>
       </div>
     </header>
 
@@ -124,14 +117,14 @@
           <!-- Today's Entries -->
           <div style="background: rgba(34, 197, 94, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
             <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent-green); text-transform: uppercase;">TODAY'S ENTRIES</div>
-            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valEntries">1656</div>
+            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valEntries">--</div>
             <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-green);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
           </div>
 
           <!-- Today's Exits -->
           <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
             <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent-blue); text-transform: uppercase;">TODAY'S EXITS</div>
-            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valExits">1643</div>
+            <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px;" id="valExits">--</div>
             <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-blue);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></svg>
           </div>
 
@@ -139,7 +132,7 @@
           <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 20px; position: relative; overflow: hidden;">
             <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-muted); text-transform: uppercase;">TODAY'S TOTAL</div>
             <div style="font-size: 32px; font-weight: 700; color: #FFFFFF; margin-top: 4px; display: flex; align-items: baseline; gap: 8px;">
-              <span id="valTotal">3299</span> <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">Crossings</span>
+              <span id="valTotal">--</span> <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">Crossings</span>
             </div>
             <svg style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; opacity: 0.15; color: var(--accent-purple);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
@@ -223,12 +216,7 @@
           </div>
         </div>
       </div>
-      
-      <div id="analyticsPlaceholder" class="card mt-16" style="display: none; text-align: center; padding: 60px 20px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-        <h2 style="color: var(--text-muted); font-size: 1.2rem;">Live Analytics is disabled</h2>
-        <p style="color: var(--text-muted); margin-top: 8px;">Toggle "Live Analytics" on to view historical charts and trends.</p>
-      </div>
+
     </div>
   </main>
 
@@ -254,23 +242,7 @@
           <label for="targetClass">Target Object</label>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <select id="targetClass" class="form-control" style="width: 100%;">
-              <option value="0">Person</option>
-              <option value="1">Bicycle</option>
-              <option value="2">Car</option>
-              <option value="3">Motorcycle</option>
-              <option value="5">Bus</option>
-              <option value="7">Truck</option>
-              <option value="15">Cat</option>
-              <option value="16">Dog</option>
-              <option value="24">Backpack</option>
-              <option value="26">Handbag</option>
-              <option value="28">Suitcase</option>
-              <option value="39">Bottle</option>
-              <option value="41">Cup</option>
-              <option value="56">Chair</option>
-              <option value="63">Laptop</option>
-              <option value="67">Cell Phone</option>
-              <option value="73">Book</option>
+              <option value="0">Sack</option>
             </select>
           </div>
         </div>
@@ -284,6 +256,6 @@
   </div>
 
 
-  <script src="/static/js/main.js"></script>
+  <script src="/static/js/main.js?v=14"></script>
 </body>
 </html>

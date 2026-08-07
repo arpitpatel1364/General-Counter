@@ -45,6 +45,7 @@ class CameraManager:
             target_class=target_class
         )
         self._detectors[camera_id] = detector
+        db.set_camera_active(camera_id, True)
         
         # If there's an active session, start counting automatically
         active_session = db.get_active_session(camera_id)
@@ -54,16 +55,17 @@ class CameraManager:
         logger.info("Camera %d started", camera_id)
         return True
 
-    def stop_camera(self, camera_id: int):
+    def stop_camera(self, camera_id: int, manual: bool = True):
         det = self._detectors.pop(camera_id, None)
         if det:
             det.stop()
-            db.set_camera_active(camera_id, False)
+            if manual:
+                db.set_camera_active(camera_id, False)
             logger.info("Camera %d stopped", camera_id)
 
     def stop_all(self):
         for cid in list(self._detectors.keys()):
-            self.stop_camera(cid)
+            self.stop_camera(cid, manual=False)
 
     # ------------------------------------------------------------------
     # Queries
@@ -112,12 +114,9 @@ class CameraManager:
         # To get the real "Total In/Out (Today)", we should fetch from DB
         # But for live dashboard, we can just aggregate DB stats for all cameras
         # Actually, for speed, we can use the DB for totals, and memory for occupancy
-        today_in = 0
-        today_out = 0
-        for cid in db.list_cameras():
-            stats = db.analytics_today(cid["id"])
-            today_in += stats.get("total_in", 0)
-            today_out += stats.get("total_out", 0)
+        stats = db.global_analytics_today()
+        today_in = stats.get("total_in", 0)
+        today_out = stats.get("total_out", 0)
             
         return {
             "total_in": today_in,

@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>People Counter - Settings</title>
+  <title>Sack Counter - Settings</title>
   <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=14">
 </head>
 <body>
 
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 26px; max-width: 100%;">
     </div>
     <nav>
       <a href="/" class="nav-link">Dashboard</a>
       <a href="/sessions" class="nav-link">Laps / Sessions</a>
+      <a href="/session-logs" class="nav-link">Session Logs</a>
       <a href="/cameras" class="nav-link">Cameras</a>
       <a href="/settings" class="nav-link active">Settings</a>
     </nav>
@@ -47,7 +51,7 @@
               <div class="setting-name">Maximum Cameras</div>
               <div class="setting-desc">The maximum number of RTSP streams supported concurrently (MAX_CAMERAS)</div>
             </div>
-            <div class="setting-value badge badge-blue">1</div>
+            <div class="setting-value badge badge-blue" id="settingMaxCameras">1</div>
           </div>
           
           <div class="setting-item">
@@ -58,7 +62,7 @@
               <div class="setting-name">AI Model Weight</div>
               <div class="setting-desc">The YOLO weights used for detection (MODEL)</div>
             </div>
-            <div class="setting-value badge">yolo11n.pt</div>
+            <div class="setting-value badge" id="settingModel">vijay-sack.pt</div>
           </div>
           
           <div class="setting-item">
@@ -69,7 +73,7 @@
               <div class="setting-name">Confidence Threshold</div>
               <div class="setting-desc">Minimum score for a detection to be valid (CONFIDENCE)</div>
             </div>
-            <div class="setting-value badge badge-green">0.35</div>
+            <div class="setting-value badge badge-green" id="settingConfidence">0.35</div>
           </div>
           
           <div class="setting-item">
@@ -80,7 +84,7 @@
               <div class="setting-name">NMS IOU Threshold</div>
               <div class="setting-desc">Intersection Over Union threshold for bounding box overlap (IOU)</div>
             </div>
-            <div class="setting-value badge badge-orange">0.5</div>
+            <div class="setting-value badge badge-orange" id="settingIou">0.5</div>
           </div>
           
           <div class="setting-item">
@@ -91,13 +95,13 @@
               <div class="setting-name">Tracker Configuration</div>
               <div class="setting-desc">YAML configuration file for the tracker algorithm (TRACKER)</div>
             </div>
-            <div class="setting-value badge">bytetrack.yaml</div>
+            <div class="setting-value badge" id="settingTracker">bytetrack.yaml</div>
           </div>
         </div>
       </div>
     </div>
   </main>
 
-  <script src="/static/js/main.js"></script>
+  <script src="/static/js/main.js?v=14"></script>
 </body>
 </html>

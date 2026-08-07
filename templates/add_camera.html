@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>People Counter - Add Camera</title>
+  <title>Sack Counter - Add Camera</title>
   <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=14">
 </head>
 <body>
 
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 40px; max-width: 100%;">
+      <img src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo" style="max-height: 26px; max-width: 100%;">
     </div>
     <nav>
       <a href="/" class="nav-link">Dashboard</a>
       <a href="/sessions" class="nav-link">Laps / Sessions</a>
+      <a href="/session-logs" class="nav-link">Session Logs</a>
       <a href="/cameras" class="nav-link active">Cameras</a>
       <a href="/settings" class="nav-link">Settings</a>
     </nav>
@@ -49,7 +53,7 @@
 
           <div class="form-group">
             <label for="camRtsp">RTSP Stream URL</label>
-            <input type="url" id="camRtsp" name="rtsp_url" required placeholder="rtsp://admin:pass@192.168.1.10:554/stream">
+            <input type="text" id="camRtsp" name="rtsp_url" required placeholder="rtsp://admin:pass@192.168.1.10:554/stream">
           </div>
 
           <div style="display: flex; gap: 10px; margin-top: 24px;">
@@ -61,6 +65,6 @@
     </div>
   </main>
 
-  <script src="/static/js/main.js"></script>
+  <script src="/static/js/main.js?v=14"></script>
 </body>
 </html>
