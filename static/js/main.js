@@ -3,6 +3,8 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initResponsiveNavigation();
+
   const path = window.location.pathname;
 
   if (path === '/') {
@@ -23,6 +25,79 @@ document.addEventListener('DOMContentLoaded', () => {
   initGlobalStatus();
 });
 
+function initResponsiveNavigation() {
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileDrawerOverlay');
+
+  if (!sidebar) return;
+
+  const closeDrawer = () => {
+    sidebar.classList.remove('open');
+    document.body.classList.remove('mobile-drawer-open');
+  };
+
+  const applySidebarState = () => {
+    if (window.innerWidth > 1023 && sidebarToggle) {
+      const savedState = localStorage.getItem('sidebarCollapsed') === 'true';
+      const shouldCollapse = savedState;
+      sidebar.classList.toggle('collapsed', shouldCollapse);
+      sidebarToggle.setAttribute('aria-expanded', String(!shouldCollapse));
+      sidebarToggle.setAttribute('aria-label', shouldCollapse ? 'Expand sidebar' : 'Collapse sidebar');
+      const icon = sidebarToggle.querySelector('svg');
+      if (icon) {
+        icon.style.transform = shouldCollapse ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    } else {
+      sidebar.classList.remove('collapsed');
+      if (sidebarToggle) {
+        sidebarToggle.setAttribute('aria-expanded', 'true');
+        sidebarToggle.setAttribute('aria-label', 'Collapse sidebar');
+      }
+    }
+  };
+
+  if (menuToggle && overlay) {
+    menuToggle.addEventListener('click', () => {
+      const isOpen = sidebar.classList.toggle('open');
+      document.body.classList.toggle('mobile-drawer-open', isOpen);
+    });
+
+    overlay.addEventListener('click', closeDrawer);
+  }
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+      if (window.innerWidth <= 1023) return;
+      const willCollapse = !sidebar.classList.contains('collapsed');
+      sidebar.classList.toggle('collapsed', willCollapse);
+      localStorage.setItem('sidebarCollapsed', String(willCollapse));
+      sidebarToggle.setAttribute('aria-expanded', String(!willCollapse));
+      sidebarToggle.setAttribute('aria-label', willCollapse ? 'Expand sidebar' : 'Collapse sidebar');
+      const icon = sidebarToggle.querySelector('svg');
+      if (icon) {
+        icon.style.transform = willCollapse ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 1023) {
+      closeDrawer();
+    }
+    applySidebarState();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeDrawer();
+    }
+  });
+
+  applySidebarState();
+}
+
 // --- Global Status ---
 let globalStatusInterval = null;
 
@@ -36,8 +111,8 @@ async function initGlobalStatus() {
   statusContainer.style.marginTop = 'auto';
   statusContainer.style.borderTop = '1px solid var(--border-subtle)';
   statusContainer.innerHTML = `
-    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">System Status</div>
-    <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
+    <div class="system-status-title" style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">System Status</div>
+    <div class="global-status-container" style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
       <span id="globalStatusIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
       <span id="globalStatusText" style="color: var(--text-color);">Idle</span>
     </div>
