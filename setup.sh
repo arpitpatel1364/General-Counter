@@ -40,4 +40,3 @@ sudo "${PROJECT_ROOT}/scripts/05_sudoers.sh"
 
 log_success "Sack Counter setup completed successfully!"
 log_info "To check system health or run repairs, you can execute: ./scripts/06_repair_service.sh"
-EOF
