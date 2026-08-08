@@ -108,9 +108,26 @@ def rename_session(session_id: int, payload: SessionRename):
     db.rename_session(session_id, payload.name)
     return {"message": "Session renamed"}
 
+@router.delete("/{session_id}")
+def delete_session(session_id: int):
+    session = db.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    # If the session is currently active, stop it first
+    if session.get('status') == 'active':
+        camera_id = session.get('camera_id')
+        if camera_id:
+            db.close_active_session(camera_id)
+            camera_manager.stop_counting(camera_id)
+            
+    db.delete_session(session_id)
+    return {"message": "Session deleted successfully"}
+
 @router.get("/{camera_id}/active")
 def get_active(camera_id: int):
     session = db.get_active_session(camera_id)
     if not session:
         return {"active": False}
     return {"active": True, "session": session}
+

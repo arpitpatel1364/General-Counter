@@ -377,6 +377,21 @@ def rename_session(session_id: int, new_name: str):
             (session_id, 'rename', f"Session renamed from '{old_name}' to '{new_name}'")
         )
 
+def get_session(session_id: int):
+    with db() as conn:
+        row = conn.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+        return dict(row) if row else None
+
+def delete_session(session_id: int):
+    with db() as conn:
+        # Delete related logs first to maintain referential integrity
+        conn.execute("DELETE FROM detection_logs WHERE session_id=?", (session_id,))
+        # Explicitly delete activity logs in case ON DELETE CASCADE is missing in older DBs
+        conn.execute("DELETE FROM session_activity_logs WHERE session_id=?", (session_id,))
+        # Delete session
+        conn.execute("DELETE FROM sessions WHERE id=?", (session_id,))
+
+
 def log_session_activity(session_id: int, activity: str, details: str):
     with db() as conn:
         conn.execute(

@@ -33,7 +33,7 @@
   <!-- JS generates cards here -->
 </div>
 
-<div id="paginationControls" style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:24px; display:none;">
+<div id="paginationControls" style="display:none; justify-content:center; align-items:center; gap:16px; margin-top:24px;">
   <button id="btnPrevPage" class="btn btn-secondary">Previous</button>
   <span id="pageIndicator" style="font-size:14px; font-weight:600; color:var(--text-secondary);">Page 1</span>
   <button id="btnNextPage" class="btn btn-secondary">Next</button>
@@ -56,6 +56,13 @@
 <div id="newSessionModal" class="modal-overlay">
   <div class="card modal-dialog">
     <h3 style="margin-top: 0; margin-bottom: 16px;">Start New Lap</h3>
+
+    <div class="form-group">
+      <label for="modalCameraSelect">Camera</label>
+      <select id="modalCameraSelect" class="form-control" style="margin-top: 8px;">
+        <!-- Populated via JS -->
+      </select>
+    </div>
 
     <div class="form-group">
       <label for="sessionName">Lap Name / Truck Number</label>
@@ -91,8 +98,38 @@
       style="display: flex; align-items: flex-end; gap: 4px; height: 300px; padding: 16px; background: #070708; border-radius: var(--radius-md); border-bottom: 1px dashed var(--border-subtle); overflow-x: auto;">
       <!-- Bars will be inserted here -->
     </div>
-    <div id="sessionChartEmpty" style="display: none; text-align: center; color: var(--text-muted); padding: 40px;">No
-      data recorded for this session.</div>
+    <div id="sessionChartEmpty" style="display: none; text-align: center; color: var(--text-muted); padding: 40px;">
+      No data recorded for this session.
+    </div>
+  </div>
+</div>
+
+<!-- Rename Session Modal -->
+<div id="renameSessionModal" class="modal-overlay">
+  <div class="card modal-dialog" style="width: 400px;">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Rename Lap</h3>
+    <div class="form-group">
+      <label for="renameSessionName">New Name</label>
+      <input type="text" id="renameSessionName" class="form-control" style="margin-top: 8px;">
+      <input type="hidden" id="renameSessionId">
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+      <button id="btnCancelRename" class="btn btn-secondary">Cancel</button>
+      <button id="btnConfirmRename" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Session Modal -->
+<div id="deleteSessionModal" class="modal-overlay">
+  <div class="card modal-dialog" style="width: 400px;">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Delete Lap</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 24px;">Are you sure you want to permanently delete this lap? This action cannot be undone.</p>
+    <input type="hidden" id="deleteSessionId">
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button id="btnCancelDelete" class="btn btn-secondary">Cancel</button>
+      <button id="btnConfirmDelete" class="btn btn-danger">Delete</button>
+    </div>
   </div>
 </div>
 
@@ -121,6 +158,19 @@
     const sessionChartContainer = document.getElementById("sessionChartContainer");
     const sessionChartEmpty = document.getElementById("sessionChartEmpty");
     const analyticsModalTitle = document.getElementById("analyticsModalTitle");
+    
+    // Rename and Delete Modal elements
+    const renameSessionModal = document.getElementById("renameSessionModal");
+    const renameSessionName = document.getElementById("renameSessionName");
+    const renameSessionId = document.getElementById("renameSessionId");
+    const btnCancelRename = document.getElementById("btnCancelRename");
+    const btnConfirmRename = document.getElementById("btnConfirmRename");
+    
+    const deleteSessionModal = document.getElementById("deleteSessionModal");
+    const deleteSessionId = document.getElementById("deleteSessionId");
+    const btnCancelDelete = document.getElementById("btnCancelDelete");
+    const btnConfirmDelete = document.getElementById("btnConfirmDelete");
+
     const tooltip = document.getElementById("sessionTooltip");
 
     // Pagination variables
@@ -151,6 +201,11 @@
         opt.value = c.id;
         opt.textContent = c.name;
         cameraSelect.appendChild(opt);
+
+        const modalOpt = document.createElement("option");
+        modalOpt.value = c.id;
+        modalOpt.textContent = c.name;
+        document.getElementById('modalCameraSelect').appendChild(modalOpt);
       });
 
       if (cams.length > 0) {
@@ -189,6 +244,10 @@
 
     btnNewSession.addEventListener("click", () => {
       inputName.value = '';
+      const modalCamSelect = document.getElementById('modalCameraSelect');
+      if (cameraSelect.value !== 'all') {
+        modalCamSelect.value = cameraSelect.value;
+      }
       newSessionModal.style.display = 'flex';
     });
 
@@ -202,9 +261,9 @@
 
     btnStartSession.addEventListener("click", async () => {
       const name = inputName.value.trim();
-      const camId = cameraSelect.value;
+      const camId = document.getElementById('modalCameraSelect').value;
       if (!name) return alert('Please enter a Lap Name');
-      if (camId === 'all') return alert('Please select a specific camera from the dropdown to start a lap.');
+      if (!camId) return alert('Please select a camera');
 
       newSessionModal.style.display = 'none';
       try {
@@ -235,22 +294,52 @@
     analyticsModal.addEventListener("click", (e) => {
       if (e.target === analyticsModal) analyticsModal.style.display = 'none';
     });
+    
+    // Rename Modal Event Listeners
+    btnCancelRename.addEventListener("click", () => renameSessionModal.style.display = 'none');
+    renameSessionModal.addEventListener("click", (e) => {
+      if (e.target === renameSessionModal) renameSessionModal.style.display = 'none';
+    });
+    btnConfirmRename.addEventListener("click", async () => {
+      const id = renameSessionId.value;
+      const newName = renameSessionName.value.trim();
+      if (!newName) return alert("Please enter a name");
+      
+      renameSessionModal.style.display = 'none';
+      try {
+        await fetch(`/api/sessions/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        });
+        loadSessions(cameraSelect.value);
+      } catch (e) { console.error(e); }
+    });
+
+    // Delete Modal Event Listeners
+    btnCancelDelete.addEventListener("click", () => deleteSessionModal.style.display = 'none');
+    deleteSessionModal.addEventListener("click", (e) => {
+      if (e.target === deleteSessionModal) deleteSessionModal.style.display = 'none';
+    });
+    btnConfirmDelete.addEventListener("click", async () => {
+      const id = deleteSessionId.value;
+      deleteSessionModal.style.display = 'none';
+      try {
+        const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadSessions(cameraSelect.value);
+        } else {
+          const data = await res.json();
+          alert(data.detail || "Failed to delete session.");
+        }
+      } catch (e) { console.error(e); }
+    });
 
     // Global functions for session actions
-    window.editSession = async (id, oldName) => {
-      const newName = prompt("Enter new name for lap:", oldName);
-      if (newName && newName.trim() !== oldName) {
-        try {
-          await fetch(`/api/sessions/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: newName.trim() })
-          });
-          loadSessions(cameraSelect.value);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+    window.openRenameModal = (id, oldName) => {
+      renameSessionId.value = id;
+      renameSessionName.value = oldName;
+      renameSessionModal.style.display = 'flex';
     };
 
     window.viewSessionAnalytics = async (id, name) => {
@@ -350,7 +439,6 @@
     };
 
     window.stopSession = async (camId) => {
-      if (!confirm("Are you sure you want to stop this session?")) return;
       try {
         const res = await fetch(`/api/sessions/stop`, {
           method: 'POST',
@@ -369,19 +457,9 @@
       }
     };
 
-    window.deleteSession = async (id) => {
-      if (!confirm("Are you sure you want to permanently delete this session?")) return;
-      try {
-        const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          loadSessions(cameraSelect.value);
-        } else {
-          const data = await res.json();
-          alert(data.detail || "Failed to delete session.");
-        }
-      } catch (e) {
-        console.error(e);
-      }
+    window.confirmDeleteSession = (id) => {
+      deleteSessionId.value = id;
+      deleteSessionModal.style.display = 'flex';
     };
 
     async function loadSessions(cameraId) {
@@ -424,107 +502,131 @@
 
         sessions.forEach(s => {
           const initial = s.name.charAt(0).toUpperCase();
-
-          // Calculate chart stats
           const dispatched = s.total_out;
-          const produced = s.total_in;
           const isRunning = runningCameraIds.has(s.camera_id);
-          let actionButtons = "";
+
+          // Determine status
+          let statusColor, statusBg, statusText, statusDot, avatarBg, avatarColor;
+          if (s.status === 'active' && isRunning) {
+            statusColor = 'var(--accent-green, #16a34a)';
+            statusBg    = 'var(--tint-green, #dcfce7)';
+            avatarColor = 'var(--accent-green, #166534)';
+            avatarBg    = 'var(--tint-green, #dcfce7)';
+            statusText  = 'ACTIVE';
+            statusDot   = 'var(--accent-green, #22c55e)';
+          } else if (s.status === 'active') {
+            statusColor = 'var(--accent-yellow, #ca8a04)';
+            statusBg    = 'var(--tint-yellow, #fef9c3)';
+            avatarColor = 'var(--accent-yellow, #854d0e)';
+            avatarBg    = 'var(--tint-yellow, #fef9c3)';
+            statusText  = 'PAUSED';
+            statusDot   = 'var(--accent-yellow, #eab308)';
+          } else {
+            statusColor = 'var(--text-muted, #64748b)';
+            statusBg    = 'var(--bg-surface-hover, #f1f5f9)';
+            avatarColor = 'var(--text-secondary, #475569)';
+            avatarBg    = 'var(--bg-surface-hover, #f1f5f9)';
+            statusText  = 'CLOSED';
+            statusDot   = 'var(--text-muted, #94a3b8)';
+          }
+          const stripColor = (s.status === 'active') ? (isRunning ? 'var(--accent-green,#22c55e)' : 'var(--accent-yellow,#eab308)') : 'var(--text-muted,#94a3b8)';
+          const pingSpan = (s.status === 'active' && isRunning)
+            ? `<span style="position:absolute;inset:0;border-radius:50%;background:var(--accent-green,#4ade80);opacity:0.7;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>`
+            : '';
+
+          // Build action buttons HTML — use data-* attributes, NO inline onclick
+          let actionBtnsHtml = '';
           if (s.status === 'active') {
-             if (isRunning) {
-               actionButtons = `
-                 <button onclick="pauseSession(${s.camera_id})" class="btn btn-secondary" style="padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid var(--border-subtle);">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="4"></line></svg>
-                   Pause
-                 </button>
-                 <button onclick="stopSession(${s.camera_id})" class="btn" style="background: var(--accent-red, #ef4444); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
-                   Stop
-                 </button>
-               `;
-             } else {
-               actionButtons = `
-                 <button onclick="resumeSession(${s.id})" class="btn" style="background: var(--accent-blue, #3b82f6); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                   Resume
-                 </button>
-                 <button onclick="stopSession(${s.camera_id})" class="btn" style="background: var(--accent-red, #ef4444); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
-                   Stop
-                 </button>
-               `;
-             }
-           } else {
-             actionButtons = `
-               <button onclick="resumeSession(${s.id})" class="btn" style="background: var(--accent-blue, #3b82f6); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                 Resume
-               </button>
-             `;
-           }
+            if (isRunning) {
+              actionBtnsHtml = `
+                <button class="btn session-action-btn" data-action="pause" data-camera-id="${s.camera_id}" style="background:transparent;color:var(--text-secondary);padding:7px 14px;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;font-weight:500;font-size:13px;border:1px solid var(--border-strong);transition:background 0.2s,color 0.2s;" title="Pause">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Pause
+                </button>
+                <button class="btn session-action-btn" data-action="stop" data-camera-id="${s.camera_id}" style="background:transparent;color:var(--accent-red);padding:7px 14px;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;font-weight:500;font-size:13px;border:1px solid rgba(239,68,68,0.30);transition:background 0.2s;" title="Stop">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                  Stop
+                </button>`;
+            } else {
+              actionBtnsHtml = `
+                <button class="btn session-action-btn" data-action="resume" data-session-id="${s.id}" style="background:transparent;color:var(--accent-blue);padding:7px 14px;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;border-radius:8px;font-weight:600;font-size:13px;border:1px solid rgba(59,130,246,0.35);transition:background 0.2s;" title="Resume">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Resume
+                </button>
+                <button class="btn session-action-btn" data-action="stop" data-camera-id="${s.camera_id}" style="background:transparent;color:var(--accent-red);padding:7px 14px;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;font-weight:500;font-size:13px;border:1px solid rgba(239,68,68,0.30);transition:background 0.2s;" title="Stop">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                  Stop
+                </button>`;
+            }
+          } else {
+            actionBtnsHtml = `
+              <button class="btn session-action-btn" data-action="resume" data-session-id="${s.id}" style="background:transparent;color:var(--accent-blue);padding:7px 14px;flex:1;display:flex;justify-content:center;align-items:center;gap:6px;border-radius:8px;font-weight:600;font-size:13px;border:1px solid rgba(59,130,246,0.35);transition:background 0.2s;" title="Resume">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Resume
+              </button>`;
+          }
 
           const card = document.createElement("div");
           card.className = "card session-card card-hoverable";
-          card.style = "display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden;";
-          
+          // Proper card style: overflow:hidden for border-radius clipping, no height:100% 
+          card.style.cssText = "display:flex;flex-direction:column;padding:0;overflow:hidden;";
+          card.dataset.sessionId = s.id;
+          card.dataset.cameraId  = s.camera_id;
+
           card.innerHTML = `
-             <div style="height: 3px; width: 100%; background: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #22c55e)' : 'var(--accent-yellow, #eab308)') : 'var(--text-muted, #94a3b8)'};"></div>
-             <div class="session-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px 12px; position: relative;">
-               <div style="display: flex; align-items: center; gap: 12px;">
-                 <div style="width: 36px; height: 36px; border-radius: 10px; background: ${s.status === 'active' ? (isRunning ? 'var(--tint-green, #dcfce7)' : 'var(--tint-yellow, #fef9c3)') : 'var(--bg-surface-hover, #f1f5f9)'}; color: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #166534)' : 'var(--accent-yellow, #854d0e)') : 'var(--text-secondary, #475569)'}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">
-                   ${initial}
-                 </div>
-                 <div>
-                   <h3 style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">${s.name}</h3>
-                   <span class="session-status" style="font-size: 11px; font-weight: 600; color: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #16a34a)' : 'var(--accent-yellow, #ca8a04)') : 'var(--text-muted, #64748b)'}; display: flex; align-items: center; gap: 6px;">
-                     <span style="position:relative; display:flex; width: 6px; height: 6px;">
-                       ${s.status === 'active' && isRunning ? '<span style="position:absolute; inset:0; border-radius:50%; background:var(--accent-green, #4ade80); opacity:0.7; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>' : ''}
-                       <span style="position:relative; width: 6px; height: 6px; border-radius: 50%; background: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #22c55e)' : 'var(--accent-yellow, #eab308)') : 'var(--text-muted, #94a3b8)'};"></span>
-                     </span>
-                     ${s.status === 'active' ? (isRunning ? 'ACTIVE' : 'PAUSED') : 'CLOSED'}
-                   </span>
-                 </div>
-               </div>
-               <div class="session-card-actions">
-                 <!-- Actions dropdown if needed -->
-               </div>
-             </div>
-             
-             <div style="flex: 1; padding: 8px 20px 16px;">
-              <div style="background: var(--bg-surface-solid, #f8fafc); border-radius: 12px; padding: 12px 16px; border: 1px solid var(--border-subtle); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <div style="width: 24px; height: 24px; border-radius: 6px; background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #4f46e5); display: flex; align-items: center; justify-content: center;">
+            <div style="height:3px;width:100%;background:${stripColor};border-radius:20px 20px 0 0;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px 12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:${avatarBg};color:${avatarColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;">${initial}</div>
+                <div>
+                  <h3 style="margin:0 0 2px 0;font-size:15px;font-weight:700;color:var(--text-primary);">${s.name}</h3>
+                  <span style="font-size:11px;font-weight:600;color:${statusColor};display:flex;align-items:center;gap:6px;">
+                    <span style="position:relative;display:flex;width:6px;height:6px;">
+                      ${pingSpan}
+                      <span style="position:relative;width:6px;height:6px;border-radius:50%;background:${statusDot};"></span>
+                    </span>
+                    ${statusText}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style="flex:1;padding:8px 20px 16px;">
+              <div style="background:var(--bg-surface-solid,#f8fafc);border-radius:12px;padding:12px 16px;border:1px solid var(--border-subtle);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:24px;height:24px;border-radius:6px;background:var(--tint-blue,#e0e7ff);color:var(--accent-blue,#4f46e5);display:flex;align-items:center;justify-content:center;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                   </div>
-                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Total Dispatched</div>
+                  <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">Total Dispatched</div>
                 </div>
-                <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${dispatched}</div>
-              </div>  
-               <div style="height: 60px; position: relative;">
-                 <canvas id="sessionChart_${s.id}"></canvas>
-               </div>
-             </div>
-             
-             <div style="display: flex; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-surface-solid);">
-               <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary icon-btn" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; border-radius: 8px; border: 1px solid var(--border-subtle);" title="Analytics">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-               </button>
-               <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; border-radius: 8px; border: 1px solid var(--border-subtle);" title="Rename">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-               </button>
-               
-               ${actionButtons}
-               
-               <button onclick="deleteSession(${s.id})" class="btn" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; background: transparent; color: var(--accent-red, #ef4444); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; justify-content: center; align-items: center;" title="Delete">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-               </button>
-             </div>
+                <div style="font-size:24px;font-weight:800;color:var(--text-primary);line-height:1;">${dispatched}</div>
+              </div>
+              <div style="height:60px;position:relative;overflow:hidden;">
+                <canvas id="sessionChart_${s.id}" style="width:100%;height:100%;"></canvas>
+              </div>
+            </div>
+
+            <div class="session-card-footer" style="display:flex;gap:8px;padding:12px 20px 16px;border-top:1px solid var(--border-subtle);background:var(--bg-surface-solid);">
+              <button class="btn btn-secondary icon-btn session-action-btn" data-action="analytics" data-session-id="${s.id}" data-session-name="${encodeURIComponent(s.name)}" style="padding:8px;width:36px;height:36px;flex-shrink:0;display:flex;justify-content:center;align-items:center;border:1px solid var(--border-subtle);" title="Analytics">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </button>
+              <button class="btn btn-secondary session-action-btn" data-action="rename" data-session-id="${s.id}" data-session-name="${encodeURIComponent(s.name)}" style="padding:8px;width:36px;height:36px;flex-shrink:0;display:flex;justify-content:center;align-items:center;border:1px solid var(--border-subtle);" title="Rename">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+
+              ${actionBtnsHtml}
+
+              <button class="btn session-action-btn" data-action="delete" data-session-id="${s.id}" style="padding:8px;width:36px;height:36px;flex-shrink:0;background:transparent;color:var(--accent-red);border:1px solid rgba(239,68,68,0.3);transition:background 0.2s;display:flex;justify-content:center;align-items:center;" title="Delete">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+              </button>
+            </div>
           `;
+
           sessionsGrid.appendChild(card);
 
           const ctx = document.getElementById(`sessionChart_${s.id}`);
           const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-          const chartColor = isDark ? '#3b82f6' : '#3b82f6';
+          const chartColor = '#3b82f6';
           if (ctx && typeof Chart !== 'undefined') {
             fetch(`/api/analytics/session/${s.id}`).then(r => r.json()).then(data => {
               if (!data || data.length === 0) return;
@@ -534,46 +636,58 @@
                 type: 'bar',
                 data: {
                   labels: labels,
-                  datasets: [{
-                    data: counts,
-                    backgroundColor: chartColor,
-                    borderRadius: 4,
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8,
-                    maxBarThickness: 18
-                  }]
+                  datasets: [{ data: counts, backgroundColor: chartColor, borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.8, maxBarThickness: 18 }]
                 },
                 options: {
                   responsive: true,
                   maintainAspectRatio: false,
-                  plugins: { 
-                    legend: { display: false }, 
-                    tooltip: { 
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
                       displayColors: false,
-                      backgroundColor: isDark ? 'rgba(25, 27, 35, 0.95)' : 'rgba(15, 23, 42, 0.9)',
-                      titleColor: '#f8fafc',
-                      bodyColor: '#f8fafc',
-                      padding: 10,
-                      cornerRadius: 8,
-                      callbacks: { 
-                        label: function(context) { return 'Dispatched: ' + context.raw; }
-                      }
-                    } 
+                      backgroundColor: isDark ? 'rgba(25,27,35,0.95)' : 'rgba(15,23,42,0.9)',
+                      titleColor: '#f8fafc', bodyColor: '#f8fafc', padding: 10, cornerRadius: 8,
+                      callbacks: { label: ctx => 'Dispatched: ' + ctx.raw }
+                    }
                   },
-                  scales: {
-                    x: { display: false },
-                    y: { display: false, beginAtZero: true }
-                  },
+                  scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
                   animation: { duration: 0 }
                 }
               });
             }).catch(e => console.error(e));
           }
         });
+
+        // ── EVENT DELEGATION ─────────────────────────────────────────────
+        // Single click listener on the grid handles ALL card button clicks.
+        // This avoids inline onclick attribute issues entirely — no scope
+        // issues, no HTML-escape bugs, no stacking context interference.
+        // Attach only once: remove old listener before adding new one.
+        sessionsGrid.removeEventListener('click', sessionsGrid._clickHandler);
+        sessionsGrid._clickHandler = function(e) {
+          const btn = e.target.closest('[data-action]');
+          if (!btn) return;
+          e.stopPropagation();
+
+          const action     = btn.dataset.action;
+          const sessionId  = parseInt(btn.dataset.sessionId)  || 0;
+          const cameraId   = parseInt(btn.dataset.cameraId)   || 0;
+          const sessionName = btn.dataset.sessionName ? decodeURIComponent(btn.dataset.sessionName) : '';
+
+          if      (action === 'resume')    resumeSession(sessionId);
+          else if (action === 'stop')      stopSession(cameraId);
+          else if (action === 'pause')     pauseSession(cameraId);
+          else if (action === 'analytics') viewSessionAnalytics(sessionId, sessionName);
+          else if (action === 'rename')    openRenameModal(sessionId, sessionName);
+          else if (action === 'delete')    confirmDeleteSession(sessionId);
+        };
+        sessionsGrid.addEventListener('click', sessionsGrid._clickHandler);
+
       } catch (err) {
         console.error("Failed to load sessions", err);
       }
     }
   })();
+
 </script>
 {% endblock %}

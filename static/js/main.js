@@ -237,17 +237,45 @@ async function initDashboard() {
   } catch(e) {}
 }
 
+function getChartThemeColors() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    gridColor:    isLight ? 'rgba(0, 0, 0, 0.06)'   : 'rgba(48, 54, 61, 0.70)',
+    tickColor:    isLight ? '#C1C7CF'                : '#6E7681',
+    legendColor:  isLight ? '#9CA3AF'                : '#8B949E',
+    tooltipBg:    isLight ? '#FFFFFF'                : '#161B22',
+    tooltipTitle: isLight ? '#1F2328'                : '#E6EDF3',
+    tooltipBody:  isLight ? '#636C76'                : '#8B949E',
+    tooltipBorder:isLight ? '#E5E7EB'                : '#30363D',
+    borderColor:  isLight ? 'rgba(0, 0, 0, 0.05)'   : 'rgba(48, 54, 61, 0.40)',
+  };
+}
+
 function initProductionChart() {
   const ctx = document.getElementById('productionChart');
   if (!ctx || typeof Chart === 'undefined') return;
 
+  const c = getChartThemeColors();
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
   const gradientIn = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
-  gradientIn.addColorStop(0, 'rgba(59, 130, 246, 0.9)'); // Bright Blue
-  gradientIn.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
+  if (isLight) {
+    gradientIn.addColorStop(0, 'rgba(22, 163, 74, 0.75)');   // Green — lighter on white
+    gradientIn.addColorStop(1, 'rgba(22, 163, 74, 0.08)');
+  } else {
+    gradientIn.addColorStop(0, 'rgba(34, 197, 94, 0.90)');   // Deep Space Green
+    gradientIn.addColorStop(1, 'rgba(34, 197, 94, 0.10)');
+  }
 
   const gradientOut = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
-  gradientOut.addColorStop(0, 'rgba(245, 158, 11, 0.9)'); // Amber
-  gradientOut.addColorStop(1, 'rgba(245, 158, 11, 0.2)');
+  if (isLight) {
+    gradientOut.addColorStop(0, 'rgba(37, 99, 235, 0.75)');  // Blue — lighter on white
+    gradientOut.addColorStop(1, 'rgba(37, 99, 235, 0.08)');
+  } else {
+    gradientOut.addColorStop(0, 'rgba(59, 130, 246, 0.90)'); // Deep Space Blue
+    gradientOut.addColorStop(1, 'rgba(59, 130, 246, 0.10)');
+  }
+
 
   sessionChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -258,14 +286,14 @@ function initProductionChart() {
           label: 'Produced',
           data: [],
           backgroundColor: gradientIn,
-          borderRadius: 4,
+          borderRadius: 6,
           borderWidth: 0
         },
         {
           label: 'Dispatched',
           data: [],
           backgroundColor: gradientOut,
-          borderRadius: 4,
+          borderRadius: 6,
           borderWidth: 0
         }
       ]
@@ -275,32 +303,68 @@ function initProductionChart() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          labels: { color: '#cbd5e1', font: { family: 'Inter', size: 12 } }
+          labels: { color: c.legendColor, font: { family: 'Plus Jakarta Sans, Inter', size: 12 } }
         },
         tooltip: {
-          backgroundColor: '#191b23',
-          titleColor: '#f8fafc',
-          bodyColor: '#cbd5e1',
-          borderColor: 'rgba(255,255,255,0.1)',
+          backgroundColor: c.tooltipBg,
+          titleColor: c.tooltipTitle,
+          bodyColor: c.tooltipBody,
+          borderColor: c.tooltipBorder,
           borderWidth: 1,
           padding: 12,
-          cornerRadius: 8
+          cornerRadius: 10
         }
       },
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#94a3b8', font: { family: 'Inter' } }
+          grid: { color: c.gridColor, lineWidth: 1 },
+          border: { color: c.borderColor },
+          ticks: { color: c.tickColor, font: { family: 'Inter', size: 12 } }
         },
         x: {
           grid: { display: false },
-          ticks: { color: '#94a3b8', font: { family: 'Inter' } }
+          border: { color: c.borderColor },
+          ticks: { 
+            color: c.tickColor, 
+            font: { family: 'Inter', size: 12 },
+            maxRotation: 45,
+            minRotation: 0,
+            callback: function(value) {
+              const label = this.getLabelForValue(value);
+              if (typeof label === 'string' && label.length > 12) {
+                return label.substring(0, 12) + '...';
+              }
+              return label;
+            }
+          }
         }
       }
     }
   });
 }
+
+/* Re-render chart when theme toggle is clicked */
+document.addEventListener('DOMContentLoaded', () => {
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      // Small delay to let the DOM attribute flip first
+      setTimeout(() => {
+        if (sessionChartInstance) {
+          sessionChartInstance.destroy();
+          sessionChartInstance = null;
+        }
+        initProductionChart();
+        // Re-fetch so chart gets data back after re-render
+        if (typeof fetchSessionStockOverview === 'function') {
+          fetchSessionStockOverview();
+        }
+      }, 50);
+    });
+  }
+});
+
 
 async function fetchSessionStockOverview() {
   const tableBody = document.getElementById('sessionStockTableBody');
@@ -346,7 +410,7 @@ async function fetchSessionStockOverview() {
             <td style="font-weight: 600; color: var(--text-primary);">${sName}</td>
             <td>Camera ${session.camera_id}</td>
             <td>${session.object_type || 'sack'}</td>
-            <td style="color: var(--accent-blue); font-weight: 500;">-${sOut}</td>
+            <td style="color: var(--accent-blue); font-weight: 500;">${Math.abs(sOut)}</td>
             <td>${statusBadge}</td>
           </tr>
         `;
@@ -383,16 +447,21 @@ function initSessionControls(cameraId) {
   const existingSessionSelect = document.getElementById('existingSessionSelect');
   const newSessionFields = document.getElementById('newSessionFields');
 
-  let currentStatus = 'stopped';
+  if (typeof window.sessionControlsInitialized === 'undefined') {
+    window.sessionControlsInitialized = false;
+  }
+  if (typeof window.currentSessionStatus === 'undefined') {
+    window.currentSessionStatus = 'stopped';
+  }
 
   async function pollStatus() {
     try {
-      const res = await fetch(`/api/cameras/${cameraId}/stats?t=${Date.now()}`);
+      const res = await fetch(`/api/cameras/${activeCameraId}/stats?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
-        currentStatus = data.status;
+        window.currentSessionStatus = data.status;
         
-        if (currentStatus === 'running') {
+        if (window.currentSessionStatus === 'running') {
           countingIndicator.style.backgroundColor = 'var(--accent-green)';
           const sessionStr = data.session_name || 'Unknown Lap';
           const classStr = data.class_name ? data.class_name.charAt(0).toUpperCase() + data.class_name.slice(1) : 'Unknown Class';
@@ -418,14 +487,14 @@ function initSessionControls(cameraId) {
           btnToggle.style.display = 'none';
           if (btnResumeCount) btnResumeCount.style.display = 'none';
           activeActionButtons.style.display = 'flex';
-        } else if (currentStatus === 'loading') {
+        } else if (window.currentSessionStatus === 'loading') {
           countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
           countingText.style.display = 'inline';
-          countingText.innerHTML = 'Loading model plz wait...';
+          countingText.innerHTML = 'Loading model… please wait';
           btnToggle.style.display = 'none';
           if (btnResumeCount) btnResumeCount.style.display = 'none';
           activeActionButtons.style.display = 'none';
-        } else if (currentStatus === 'paused') {
+        } else if (window.currentSessionStatus === 'paused') {
           countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
           const sessionStr = data.session_name || 'Unknown Lap';
           const classStr = data.class_name ? data.class_name.charAt(0).toUpperCase() + data.class_name.slice(1) : 'Unknown Class';
@@ -460,6 +529,9 @@ function initSessionControls(cameraId) {
   // Poll every 2 seconds
   setInterval(pollStatus, 2000);
   pollStatus();
+
+  if (window.sessionControlsInitialized) return;
+  window.sessionControlsInitialized = true;
 
   btnToggle.addEventListener('click', async () => {
     // Open modal
@@ -502,10 +574,10 @@ function initSessionControls(cameraId) {
       const res = await fetch('/api/sessions/pause', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({camera_id: cameraId})
+        body: JSON.stringify({camera_id: activeCameraId})
       });
       if (res.ok) {
-        currentStatus = 'stopped';
+        window.currentSessionStatus = 'stopped';
         pollStatus();
       } else {
         alert('Failed to pause counting. Please try again.');
@@ -529,12 +601,12 @@ function initSessionControls(cameraId) {
     // Actually we can just hit /api/sessions/start or a generic resume endpoint that infers session.
     // Let's fetch stats again to get session_id
     try {
-      const statRes = await fetch('/api/cameras/' + cameraId + '/stats');
+      const statRes = await fetch('/api/cameras/' + activeCameraId + '/stats');
       const stats = await statRes.json();
       if (stats.session_id) {
         const res = await fetch(`/api/sessions/${stats.session_id}/resume`, { method: 'POST' });
         if (res.ok) {
-          currentStatus = 'running';
+          window.currentSessionStatus = 'running';
           pollStatus();
         } else {
           alert('Failed to resume counting.');
@@ -553,7 +625,6 @@ function initSessionControls(cameraId) {
   });
 
   btnExitSession?.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to exit the current lap?')) return;
     
     if (btnPauseCount) btnPauseCount.disabled = true;
     btnExitSession.disabled = true;
@@ -563,10 +634,10 @@ function initSessionControls(cameraId) {
       const res = await fetch('/api/sessions/stop', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({camera_id: cameraId})
+        body: JSON.stringify({camera_id: activeCameraId})
       });
       if (res.ok) {
-        currentStatus = 'stopped';
+        window.currentSessionStatus = 'stopped';
         pollStatus();
       } else {
         alert('Failed to exit session. Please try again.');
@@ -602,9 +673,9 @@ function initSessionControls(cameraId) {
     modal.style.display = 'none';
     
     // Optimistic UI update
-    currentStatus = 'loading';
+    window.currentSessionStatus = 'loading';
     countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
-    countingText.textContent = 'Loading model plz wait...';
+    countingText.textContent = 'Loading model… please wait';
     btnToggle.style.display = 'none';
     activeActionButtons.style.display = 'none';
     
@@ -617,7 +688,7 @@ function initSessionControls(cameraId) {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            camera_id: cameraId,
+            camera_id: activeCameraId,
             name: name,
             target_class: parseInt(inputClass.value) || 0
           })
@@ -627,7 +698,7 @@ function initSessionControls(cameraId) {
       if (!res.ok) {
         const data = await res.json();
         alert(data.detail || data.error || "Failed to start counting.");
-        currentStatus = 'stopped';
+        window.currentSessionStatus = 'stopped';
         countingIndicator.style.backgroundColor = 'var(--text-muted)';
         countingText.textContent = 'Ready to count';
         btnToggle.style.display = 'block';
