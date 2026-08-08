@@ -24,8 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
   }
 
-  // Initialize global status for all pages
-  initGlobalStatus();
+
 });
 
 function initResponsiveNavigation() {
@@ -124,73 +123,7 @@ function initThemeToggle() {
   });
 }
 
-// --- Global Status ---
-let globalStatusInterval = null;
 
-async function initGlobalStatus() {
-  const sidebar = document.querySelector('.sidebar');
-  if (!sidebar) return;
-
-  // Create global status element in sidebar
-  const statusContainer = document.createElement('div');
-  statusContainer.style.padding = '16px';
-  statusContainer.style.marginTop = 'auto';
-  statusContainer.style.borderTop = '1px solid var(--border-subtle)';
-  statusContainer.innerHTML = `
-    <div class="system-status-title" style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">System Status</div>
-    <div class="global-status-container" style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;">
-      <span id="globalStatusIndicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: var(--text-muted);"></span>
-      <span id="globalStatusText" style="color: var(--text-primary);">Idle</span>
-    </div>
-  `;
-  
-  // Insert before footer
-  const footer = sidebar.querySelector('.sidebar-footer');
-  if (footer) {
-    sidebar.insertBefore(statusContainer, footer);
-  } else {
-    sidebar.appendChild(statusContainer);
-  }
-
-  async function pollGlobalStatus() {
-    try {
-      const res = await fetch('/api/cameras?t=' + Date.now());
-      if (res.ok) {
-        const cameras = await res.json();
-        const activeCams = cameras.filter(c => c.running);
-        
-        const indicator = document.getElementById('globalStatusIndicator');
-        const text = document.getElementById('globalStatusText');
-        
-        if (activeCams.length > 0) {
-          // Check stats for the first active camera to see if it's counting or loading
-          const statRes = await fetch('/api/cameras/' + activeCams[0].id + '/stats?t=' + Date.now());
-          if (statRes.ok) {
-            const stats = await statRes.json();
-            if (stats.status === 'running') {
-              indicator.style.backgroundColor = 'var(--accent-green)';
-              text.textContent = 'Counting Active';
-            } else if (stats.status === 'loading') {
-              indicator.style.backgroundColor = 'var(--accent-yellow)';
-              text.textContent = 'Loading Model...';
-            } else {
-              indicator.style.backgroundColor = 'var(--accent-blue)';
-              text.textContent = 'Camera Online';
-            }
-          }
-        } else {
-          indicator.style.backgroundColor = 'var(--text-muted)';
-          text.textContent = 'Idle';
-        }
-      }
-    } catch(err) {
-      console.error('Global status poll error:', err);
-    }
-  }
-
-  pollGlobalStatus();
-  globalStatusInterval = setInterval(pollGlobalStatus, 3000);
-}
 
 // --- Dashboard ---
 let dashboardInterval = null;
