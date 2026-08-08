@@ -1,664 +1,579 @@
-<!DOCTYPE html>
-<html lang="en">
+{% set active_page = 'sessions' %}
+{% extends "base.html" %}
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sack Counter - Laps / Sessions</title>
-  <link rel="icon" type="image/png" href="/static/images/Camsense app icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=30">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block title %}Sack Counter - Laps / Sessions{% endblock %}
 
-  <script>
-    (function () {
-      var savedTheme = localStorage.getItem('app-theme');
-      if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      } else {
-        document.documentElement.setAttribute('data-theme', 'light');
+{% block page_title %}
+<h1>Laps / Sessions</h1>
+<div class="subtitle">View history of counting sessions and batch runs</div>
+{% endblock %}
+
+{% block topbar_actions %}
+<button id="btnNewSession" class="btn btn-primary" style="display: none;">Start New Lap</button>
+{% endblock %}
+
+{% block content %}
+<div class="filter-bar card" style="display:flex; flex-wrap:wrap; gap:16px; align-items:center;">
+  <div style="display:flex; align-items:center; gap:8px;">
+    <label for="cameraSelect">Camera Stream</label>
+    <select id="cameraSelect" style="height:38px; padding:6px 36px 6px 12px;"></select>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <label for="startDate">Start Date</label>
+    <input type="date" id="startDate" style="height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-input);">
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <label for="endDate">End Date</label>
+    <input type="date" id="endDate" style="height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-input);">
+  </div>
+  <button id="btnFilterSessions" class="btn btn-primary" style="height:38px;">Filter</button>
+</div>
+
+<div id="sessionsGrid" class="session-grid">
+  <!-- JS generates cards here -->
+</div>
+
+<div id="paginationControls" style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:24px; display:none;">
+  <button id="btnPrevPage" class="btn btn-secondary">Previous</button>
+  <span id="pageIndicator" style="font-size:14px; font-weight:600; color:var(--text-secondary);">Page 1</span>
+  <button id="btnNextPage" class="btn btn-secondary">Next</button>
+</div>
+
+<div id="emptyState" style="display: none;" class="card mt-16">
+  <div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+    <h3>No sessions found</h3>
+    <p>Start a new lap to begin recording traffic and sack counts.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- New Session Modal -->
+<div id="newSessionModal" class="modal-overlay">
+  <div class="card modal-dialog">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Start New Lap</h3>
+
+    <div class="form-group">
+      <label for="sessionName">Lap Name / Truck Number</label>
+      <input type="text" id="sessionName" class="form-control" placeholder="e.g. Truck-XYZ-123"
+        style="margin-top: 8px;">
+    </div>
+
+    <div class="form-group" style="margin-bottom: 24px;">
+      <label for="targetClass">Target Object</label>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <select id="targetClass" class="form-control">
+          <option value="0">Sack</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button id="btnCancelSession" class="btn btn-secondary">Cancel</button>
+      <button id="btnStartSession" class="btn btn-primary">Start</button>
+    </div>
+  </div>
+</div>
+
+<!-- Session Analytics Modal -->
+<div id="analyticsModal" class="modal-overlay">
+  <div class="card modal-dialog" style="width: 800px; max-width: 90vw;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 id="analyticsModalTitle" style="margin: 0;">Session Analytics</h3>
+      <button id="btnCloseAnalytics" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
+    </div>
+
+    <div id="sessionChartContainer"
+      style="display: flex; align-items: flex-end; gap: 4px; height: 300px; padding: 16px; background: #070708; border-radius: var(--radius-md); border-bottom: 1px dashed var(--border-subtle); overflow-x: auto;">
+      <!-- Bars will be inserted here -->
+    </div>
+    <div id="sessionChartEmpty" style="display: none; text-align: center; color: var(--text-muted); padding: 40px;">No
+      data recorded for this session.</div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="sessionTooltip" class="chart-tooltip" style="display:none; position:absolute; z-index: 2000;"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (async () => {
+    const cameraSelect = document.getElementById("cameraSelect");
+    const sessionsGrid = document.getElementById("sessionsGrid");
+    const emptyState = document.getElementById("emptyState");
+    const btnNewSession = document.getElementById("btnNewSession");
+
+    // New Session Modal elements
+    const newSessionModal = document.getElementById("newSessionModal");
+    const btnCancelSession = document.getElementById("btnCancelSession");
+    const btnStartSession = document.getElementById("btnStartSession");
+    const inputName = document.getElementById("sessionName");
+    const inputClass = document.getElementById("targetClass");
+
+    // Analytics Modal elements
+    const analyticsModal = document.getElementById("analyticsModal");
+    const btnCloseAnalytics = document.getElementById("btnCloseAnalytics");
+    const sessionChartContainer = document.getElementById("sessionChartContainer");
+    const sessionChartEmpty = document.getElementById("sessionChartEmpty");
+    const analyticsModalTitle = document.getElementById("analyticsModalTitle");
+    const tooltip = document.getElementById("sessionTooltip");
+
+    // Pagination variables
+    let currentPage = 1;
+    const limit = 12;
+    let totalItems = 0;
+    
+    const startDateInput = document.getElementById("startDate");
+    const endDateInput = document.getElementById("endDate");
+    const btnFilterSessions = document.getElementById("btnFilterSessions");
+    const paginationControls = document.getElementById("paginationControls");
+    const btnPrevPage = document.getElementById("btnPrevPage");
+    const btnNextPage = document.getElementById("btnNextPage");
+    const pageIndicator = document.getElementById("pageIndicator");
+
+    // Load cameras
+    try {
+      const res = await fetch("/api/cameras");
+      const cams = await res.json();
+      
+      const allOpt = document.createElement("option");
+      allOpt.value = "all";
+      allOpt.textContent = "All Cameras";
+      cameraSelect.appendChild(allOpt);
+      
+      cams.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        cameraSelect.appendChild(opt);
+      });
+
+      if (cams.length > 0) {
+        btnNewSession.style.display = 'inline-flex';
       }
-    })();
-  </script>
-</head>
-
-<body>
-  <div class="mobile-drawer-overlay" id="mobileDrawerOverlay"></div>
-
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <button class="sidebar-toggle-btn" id="sidebarToggle" type="button" aria-label="Collapse sidebar"
-        aria-expanded="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 18l-6-6 6-6"></path>
-        </svg>
-      </button>
-      <img class="logo-full" src="/static/images/Camsense Logo-Beige -Brown.png" alt="CamSense Logo">
-      <svg class="logo-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-        <path d="M8 8h8"></path>
-        <path d="M8 12h5"></path>
-      </svg>
-    </div>
-    <nav>
-      <a href="/" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 10.5 12 3l9 7.5"></path>
-          <path d="M5 9.5V21h14V9.5"></path>
-        </svg><span class="nav-text">Dashboard</span></a>
-      <a href="/sessions" class="nav-link active"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 2v4"></path>
-          <path d="M16 2v4"></path>
-          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-          <path d="M3 10h18"></path>
-        </svg><span class="nav-text">Laps / Sessions</span></a>
-      <a href="/session-logs" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7h18"></path>
-          <path d="M7 11h10"></path>
-          <path d="M7 15h7"></path>
-          <path d="M3 5v16h18V5H3z" />
-        </svg><span class="nav-text">Session Logs</span></a>
-      <a href="/cameras" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-          <circle cx="12" cy="13" r="3" />
-        </svg><span class="nav-text">Cameras</span></a>
-      <a href="/settings" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-        </svg><span class="nav-text">Settings</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <img src="/static/images/powered-by-logo.png" alt="Powered by CamSense">
-    </div>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" type="button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      </button>
-      <div class="page-header-title">
-        <h1>Laps / Sessions</h1>
-        <div class="subtitle">View history of counting sessions and batch runs</div>
-      </div>
-      <div class="topbar-actions">
-        <button id="btnNewSession" class="btn btn-primary" style="display: none;">Start New Lap</button>
-        <button id="themeToggle" class="btn btn-secondary icon-btn" aria-label="Toggle Theme">
-          <svg id="themeIconDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            style="display: none;">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <svg id="themeIconLight" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="content">
-      <div class="filter-bar card" style="display:flex; flex-wrap:wrap; gap:16px; align-items:center;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <label for="cameraSelect">Camera Stream</label>
-          <select id="cameraSelect" style="height:38px; padding:6px 36px 6px 12px;"></select>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <label for="startDate">Start Date</label>
-          <input type="date" id="startDate" style="height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-input);">
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <label for="endDate">End Date</label>
-          <input type="date" id="endDate" style="height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg-input);">
-        </div>
-        <button id="btnFilterSessions" class="btn btn-primary" style="height:38px;">Filter</button>
-      </div>
-
-      <div id="sessionsGrid" class="session-grid">
-        <!-- JS generates cards here -->
-      </div>
       
-      <div id="paginationControls" style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:24px; display:none;">
-        <button id="btnPrevPage" class="btn btn-secondary">Previous</button>
-        <span id="pageIndicator" style="font-size:14px; font-weight:600; color:var(--text-secondary);">Page 1</span>
-        <button id="btnNextPage" class="btn btn-secondary">Next</button>
-      </div>
+      loadSessions(cameraSelect.value);
+    } catch (err) {
+      console.error("Failed to load cameras", err);
+    }
 
-      <div id="emptyState" style="display: none;" class="card mt-16">
-        <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          <h3>No sessions found</h3>
-          <p>Start a new lap to begin recording traffic and sack counts.</p>
-        </div>
-      </div>
-    </div>
-  </main>
+    cameraSelect.addEventListener("change", () => {
+      currentPage = 1;
+      loadSessions(cameraSelect.value);
+    });
+    
+    btnFilterSessions.addEventListener("click", () => {
+      currentPage = 1;
+      loadSessions(cameraSelect.value);
+    });
+    
+    btnPrevPage.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadSessions(cameraSelect.value);
+      }
+    });
+    
+    btnNextPage.addEventListener("click", () => {
+      const totalPages = Math.ceil(totalItems / limit);
+      if (currentPage < totalPages) {
+        currentPage++;
+        loadSessions(cameraSelect.value);
+      }
+    });
 
-  <!-- New Session Modal -->
-  <div id="newSessionModal" class="modal-overlay">
-    <div class="card modal-dialog">
-      <h3 style="margin-top: 0; margin-bottom: 16px;">Start New Lap</h3>
+    btnNewSession.addEventListener("click", () => {
+      inputName.value = '';
+      newSessionModal.style.display = 'flex';
+    });
 
-      <div class="form-group">
-        <label for="sessionName">Lap Name / Truck Number</label>
-        <input type="text" id="sessionName" class="form-control" placeholder="e.g. Truck-XYZ-123"
-          style="margin-top: 8px;">
-      </div>
+    btnCancelSession.addEventListener("click", () => {
+      newSessionModal.style.display = 'none';
+    });
 
-      <div class="form-group" style="margin-bottom: 24px;">
-        <label for="targetClass">Target Object</label>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <select id="targetClass" class="form-control">
-            <option value="0">Sack</option>
-          </select>
-        </div>
-      </div>
+    newSessionModal.addEventListener("click", (e) => {
+      if (e.target === newSessionModal) newSessionModal.style.display = 'none';
+    });
 
-      <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button id="btnCancelSession" class="btn btn-secondary">Cancel</button>
-        <button id="btnStartSession" class="btn btn-primary">Start</button>
-      </div>
-    </div>
-  </div>
+    btnStartSession.addEventListener("click", async () => {
+      const name = inputName.value.trim();
+      const camId = cameraSelect.value;
+      if (!name) return alert('Please enter a Lap Name');
+      if (camId === 'all') return alert('Please select a specific camera from the dropdown to start a lap.');
 
-  <!-- Session Analytics Modal -->
-  <div id="analyticsModal" class="modal-overlay">
-    <div class="card modal-dialog" style="width: 800px; max-width: 90vw;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 id="analyticsModalTitle" style="margin: 0;">Session Analytics</h3>
-        <button id="btnCloseAnalytics" class="btn btn-secondary" style="padding: 4px 8px;">✕</button>
-      </div>
-
-      <div id="sessionChartContainer"
-        style="display: flex; align-items: flex-end; gap: 4px; height: 300px; padding: 16px; background: #070708; border-radius: var(--radius-md); border-bottom: 1px dashed var(--border-subtle); overflow-x: auto;">
-        <!-- Bars will be inserted here -->
-      </div>
-      <div id="sessionChartEmpty" style="display: none; text-align: center; color: var(--text-muted); padding: 40px;">No
-        data recorded for this session.</div>
-    </div>
-  </div>
-
-  <!-- Tooltip -->
-  <div id="sessionTooltip" class="chart-tooltip" style="display:none; position:absolute; z-index: 2000;"></div>
-
-  <script>
-    (async () => {
-      const cameraSelect = document.getElementById("cameraSelect");
-      const sessionsGrid = document.getElementById("sessionsGrid");
-      const emptyState = document.getElementById("emptyState");
-      const btnNewSession = document.getElementById("btnNewSession");
-
-      // New Session Modal elements
-      const newSessionModal = document.getElementById("newSessionModal");
-      const btnCancelSession = document.getElementById("btnCancelSession");
-      const btnStartSession = document.getElementById("btnStartSession");
-      const inputName = document.getElementById("sessionName");
-      const inputClass = document.getElementById("targetClass");
-
-      // Analytics Modal elements
-      const analyticsModal = document.getElementById("analyticsModal");
-      const btnCloseAnalytics = document.getElementById("btnCloseAnalytics");
-      const sessionChartContainer = document.getElementById("sessionChartContainer");
-      const sessionChartEmpty = document.getElementById("sessionChartEmpty");
-      const analyticsModalTitle = document.getElementById("analyticsModalTitle");
-      const tooltip = document.getElementById("sessionTooltip");
-
-      // Pagination variables
-      let currentPage = 1;
-      const limit = 12;
-      let totalItems = 0;
-      
-      const startDateInput = document.getElementById("startDate");
-      const endDateInput = document.getElementById("endDate");
-      const btnFilterSessions = document.getElementById("btnFilterSessions");
-      const paginationControls = document.getElementById("paginationControls");
-      const btnPrevPage = document.getElementById("btnPrevPage");
-      const btnNextPage = document.getElementById("btnNextPage");
-      const pageIndicator = document.getElementById("pageIndicator");
-
-      // Load cameras
+      newSessionModal.style.display = 'none';
       try {
-        const res = await fetch("/api/cameras");
-        const cams = await res.json();
-        cams.forEach(c => {
-          const opt = document.createElement("option");
-          opt.value = c.id;
-          opt.textContent = c.name;
-          cameraSelect.appendChild(opt);
+        const res = await fetch('/api/sessions/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            camera_id: parseInt(camId),
+            name: name,
+            target_class: parseInt(inputClass.value) || 0
+          })
         });
 
-        if (cams.length > 0) {
-          btnNewSession.style.display = 'inline-flex';
-          loadSessions(cams[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load cameras", err);
-      }
-
-      cameraSelect.addEventListener("change", () => {
-        currentPage = 1;
-        loadSessions(cameraSelect.value);
-      });
-      
-      btnFilterSessions.addEventListener("click", () => {
-        currentPage = 1;
-        loadSessions(cameraSelect.value);
-      });
-      
-      btnPrevPage.addEventListener("click", () => {
-        if (currentPage > 1) {
-          currentPage--;
-          loadSessions(cameraSelect.value);
-        }
-      });
-      
-      btnNextPage.addEventListener("click", () => {
-        const totalPages = Math.ceil(totalItems / limit);
-        if (currentPage < totalPages) {
-          currentPage++;
-          loadSessions(cameraSelect.value);
-        }
-      });
-
-      btnNewSession.addEventListener("click", () => {
-        inputName.value = '';
-        newSessionModal.style.display = 'flex';
-      });
-
-      btnCancelSession.addEventListener("click", () => {
-        newSessionModal.style.display = 'none';
-      });
-
-      newSessionModal.addEventListener("click", (e) => {
-        if (e.target === newSessionModal) newSessionModal.style.display = 'none';
-      });
-
-      btnStartSession.addEventListener("click", async () => {
-        const name = inputName.value.trim();
-        const camId = cameraSelect.value;
-        if (!name || !camId) return alert('Please enter a Lap Name');
-
-        newSessionModal.style.display = 'none';
-        try {
-          const res = await fetch('/api/sessions/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              camera_id: parseInt(camId),
-              name: name,
-              target_class: parseInt(inputClass.value) || 0
-            })
-          });
-
-          if (!res.ok) {
-            const data = await res.json();
-            alert(data.detail || data.error || "Failed to start counting.");
-            return;
-          }
-
-          loadSessions(camId);
-        } catch (err) { console.error(err); }
-      });
-
-      btnCloseAnalytics.addEventListener("click", () => {
-        analyticsModal.style.display = 'none';
-      });
-
-      analyticsModal.addEventListener("click", (e) => {
-        if (e.target === analyticsModal) analyticsModal.style.display = 'none';
-      });
-
-      // Global functions for session actions
-      window.editSession = async (id, oldName) => {
-        const newName = prompt("Enter new name for lap:", oldName);
-        if (newName && newName.trim() !== oldName) {
-          try {
-            await fetch(`/api/sessions/${id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: newName.trim() })
-            });
-            loadSessions(cameraSelect.value);
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      };
-
-      window.viewSessionAnalytics = async (id, name) => {
-        analyticsModalTitle.textContent = `Analytics: ${name}`;
-        sessionChartContainer.innerHTML = '';
-        sessionChartEmpty.style.display = 'none';
-        analyticsModal.style.display = 'flex';
-
-        try {
-          const res = await fetch(`/api/analytics/session/${id}`);
+        if (!res.ok) {
           const data = await res.json();
-
-          if (!data || data.length === 0) {
-            sessionChartEmpty.style.display = 'block';
-            return;
-          }
-
-          const maxCount = Math.max(1, ...data.map(d => Math.max(d.in_count, d.out_count)));
-
-          data.forEach(item => {
-            const timeLabel = item.time_slice.split(' ')[1]; // Extract HH:MM
-            const inC = item.in_count || 0;
-            const outC = item.out_count || 0;
-
-            const col = document.createElement('div');
-            col.style = 'display: flex; flex-direction: column; justify-content: flex-end; align-items: center; width: 40px; margin: 0 4px; cursor: pointer; flex-shrink: 0;';
-
-            const wrapper = document.createElement('div');
-            wrapper.style = 'display: flex; align-items: flex-end; gap: 2px; height: 250px; width: 100%;';
-
-            const inH = (inC / maxCount) * 100;
-            const outH = (outC / maxCount) * 100;
-
-            wrapper.innerHTML = `
-              <div style="width: 50%; height: ${inH}%; background: var(--accent-green); border-radius: 2px 2px 0 0;"></div>
-              <div style="width: 50%; height: ${outH}%; background: var(--accent-red); border-radius: 2px 2px 0 0;"></div>
-            `;
-
-            col.addEventListener('mouseenter', (e) => {
-              tooltip.style.display = 'block';
-              tooltip.innerHTML = `<strong>${timeLabel}</strong><br>IN: <span style="color:var(--accent-green)">${inC}</span> | OUT: <span style="color:var(--accent-red)">${outC}</span>`;
-              tooltip.style.left = e.pageX + 10 + 'px';
-              tooltip.style.top = e.pageY - 30 + 'px';
-            });
-            col.addEventListener('mousemove', (e) => {
-              tooltip.style.left = e.pageX + 10 + 'px';
-              tooltip.style.top = e.pageY - 30 + 'px';
-            });
-            col.addEventListener('mouseleave', () => {
-              tooltip.style.display = 'none';
-            });
-
-            const lbl = document.createElement('div');
-            lbl.style = 'font-size: 10px; margin-top: 8px; color: var(--text-muted); text-align: center;';
-            lbl.textContent = timeLabel;
-
-            col.appendChild(wrapper);
-            col.appendChild(lbl);
-            sessionChartContainer.appendChild(col);
-          });
-        } catch (e) {
-          console.error(e);
+          alert(data.detail || data.error || "Failed to start counting.");
+          return;
         }
-      };
 
-      window.resumeSession = async (id) => {
-        try {
-          const res = await fetch(`/api/sessions/${id}/resume`, { method: 'POST' });
-          if (!res.ok) {
-            const data = await res.json();
-            alert(data.detail || data.error || "Failed to resume lap.");
-            return;
-          }
-          loadSessions(cameraSelect.value);
-        } catch (e) {
-          console.error(e);
-        }
-      };
+        loadSessions(camId);
+      } catch (err) { console.error(err); }
+    });
 
-      window.deleteSession = async (id) => {
-        if (!confirm("Are you sure you want to permanently delete this session?")) return;
-        try {
-          const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
-          if (res.ok) {
-            loadSessions(cameraSelect.value);
-          } else {
-            const data = await res.json();
-            alert(data.detail || "Failed to delete session.");
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      };
+    btnCloseAnalytics.addEventListener("click", () => {
+      analyticsModal.style.display = 'none';
+    });
 
-      window.stopSession = async (camId) => {
+    analyticsModal.addEventListener("click", (e) => {
+      if (e.target === analyticsModal) analyticsModal.style.display = 'none';
+    });
+
+    // Global functions for session actions
+    window.editSession = async (id, oldName) => {
+      const newName = prompt("Enter new name for lap:", oldName);
+      if (newName && newName.trim() !== oldName) {
         try {
-          await fetch(`/api/sessions/stop`, {
-            method: 'POST',
+          await fetch(`/api/sessions/${id}`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ camera_id: camId })
+            body: JSON.stringify({ name: newName.trim() })
           });
           loadSessions(cameraSelect.value);
         } catch (e) {
           console.error(e);
-        }
-      };
-
-      async function loadSessions(cameraId) {
-        sessionsGrid.innerHTML = "";
-        emptyState.style.display = "none";
-        paginationControls.style.display = "none";
-        
-        let url = `/api/sessions/${cameraId}?page=${currentPage}&limit=${limit}`;
-        if (startDateInput.value) url += `&start_date=${startDateInput.value}`;
-        if (endDateInput.value) url += `&end_date=${endDateInput.value}`;
-        
-        try {
-          const res = await fetch(url);
-          const responseData = await res.json();
-          const sessions = responseData.data || [];
-          totalItems = responseData.total || 0;
-
-          if (sessions.length === 0) {
-            emptyState.style.display = "block";
-            return;
-          }
-          
-          if (totalItems > limit) {
-             paginationControls.style.display = "flex";
-             pageIndicator.textContent = `Page ${currentPage} of ${Math.ceil(totalItems / limit)}`;
-             btnPrevPage.disabled = currentPage === 1;
-             btnNextPage.disabled = currentPage === Math.ceil(totalItems / limit);
-          }
-
-          sessions.forEach(s => {
-            const dateStr = new Date(s.created_at).toLocaleString();
-            const closedDateStr = s.closed_at ? new Date(s.closed_at).toLocaleString() : "Active";
-            const initial = s.name.charAt(0).toUpperCase();
-
-            // Calculate chart stats
-            const dispatched = s.total_out;
-            const produced = s.total_in;
-            const statusClass = s.status === 'active' ? 'status-active' : 'status-closed';
-            const statusText = s.status === 'active' ? 'ACTIVE' : 'CLOSED';
-
-            const card = document.createElement("div");
-            card.className = "card session-card";
-            card.style = "display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden;";
-            
-            card.innerHTML = `
-              <div style="height: 3px; width: 100%; background: ${s.status === 'active' ? 'var(--accent-green, #22c55e)' : 'var(--text-muted, #94a3b8)'};"></div>
-              <div class="session-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px 12px; position: relative;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div style="width: 36px; height: 36px; border-radius: 10px; background: ${s.status === 'active' ? 'var(--tint-green, #dcfce7)' : 'var(--bg-surface-hover, #f1f5f9)'}; color: ${s.status === 'active' ? 'var(--accent-green, #166534)' : 'var(--text-secondary, #475569)'}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">
-                    ${initial}
-                  </div>
-                  <div>
-                    <h3 style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">${s.name}</h3>
-                    <span class="session-status" style="font-size: 11px; font-weight: 600; color: ${s.status === 'active' ? 'var(--accent-green, #16a34a)' : 'var(--text-muted, #64748b)'}; display: flex; align-items: center; gap: 6px;">
-                      <span style="position:relative; display:flex; width: 6px; height: 6px;">
-                        ${s.status === 'active' ? `<span style="position:absolute; inset:0; border-radius:50%; background:var(--accent-green, #4ade80); opacity:0.7; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>` : ''}
-                        <span style="position:relative; width: 6px; height: 6px; border-radius: 50%; background: ${s.status === 'active' ? 'var(--accent-green, #22c55e)' : 'var(--text-muted, #94a3b8)'};"></span>
-                      </span>
-                      ${statusText}
-                    </span>
-                  </div>
-                </div>
-                <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary icon-btn" style="padding: 6px; border-radius: 8px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-secondary);" title="View Analytics">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                </button>
-              </div>
-
-              <div class="session-card-body" style="padding: 0 20px 16px; display: flex; flex-direction: column;">
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-surface-solid, #f8fafc); border-radius: 8px; margin-bottom: 16px; font-size: 12px; border: 1px solid var(--border-subtle);">
-                  <div>
-                    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">Started</div>
-                    <div style="font-weight: 600; color: var(--text-primary);">${dateStr.split(',')[0]} <span style="color: var(--text-muted); font-weight:400;">${dateStr.split(',')[1] || ''}</span></div>
-                  </div>
-                  <div style="width: 1px; height: 16px; background: var(--border-subtle);"></div>
-                  <div style="text-align: right;">
-                    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">Ended</div>
-                    <div style="font-weight: 600; color: var(--text-primary);">${s.closed_at ? closedDateStr.split(',')[0] + ' <span style="color: var(--text-muted); font-weight:400;">' + (closedDateStr.split(',')[1] || '') + '</span>' : 'Active'}</div>
-                  </div>
-                </div>
-                
-                <div style="background: var(--bg-surface-solid, #f8fafc); border-radius: 12px; padding: 12px 16px; border: 1px solid var(--border-subtle); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width: 24px; height: 24px; border-radius: 6px; background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #4f46e5); display: flex; align-items: center; justify-content: center;">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                    </div>
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Total Dispatched</div>
-                  </div>
-                  <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${dispatched}</div>
-                </div>
-                
-                <div style="height: 60px; position: relative;">
-                  <canvas id="sessionChart_${s.id}"></canvas>
-                </div>
-
-              </div>
-              <div class="session-card-actions" style="margin-top: auto; display: flex; gap: 8px; padding: 12px 20px; align-items: center; background: transparent; border-top: 1px solid var(--border-subtle);">
-                <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px;" title="Rename">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                  Rename
-                </button>
-                ${s.status === 'active'
-                ? `<button onclick="stopSession(${s.camera_id})" class="btn" style="background: var(--accent-red, #ef4444); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>Stop</button>`
-                : `<button onclick="resumeSession(${s.id})" class="btn" style="background: var(--accent-blue, #3b82f6); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>Resume</button>`
-              }
-                <button onclick="deleteSession(${s.id})" class="btn" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; background: transparent; color: var(--accent-red, #ef4444); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; justify-content: center; align-items: center;" title="Delete">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                </button>
-              </div>
-            `;
-            sessionsGrid.appendChild(card);
-
-            const ctx = document.getElementById(`sessionChart_${s.id}`);
-            const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-            const chartColor = isDark ? '#3b82f6' : '#3b82f6';
-            if (ctx && typeof Chart !== 'undefined') {
-              fetch(`/api/analytics/session/${s.id}`).then(r => r.json()).then(data => {
-                if (!data || data.length === 0) return;
-                const labels = data.map(d => d.time_slice.split(' ')[1]);
-                const counts = data.map(d => d.out_count || 0);
-                new Chart(ctx, {
-                  type: 'bar',
-                  data: {
-                    labels: labels,
-                    datasets: [{
-                      data: counts,
-                      backgroundColor: chartColor,
-                      borderRadius: 4,
-                      barPercentage: 0.7,
-                      categoryPercentage: 0.8
-                    }]
-                  },
-                  options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { 
-                      legend: { display: false }, 
-                      tooltip: { 
-                        displayColors: false,
-                        backgroundColor: isDark ? 'rgba(25, 27, 35, 0.95)' : 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#f8fafc',
-                        bodyColor: '#f8fafc',
-                        padding: 10,
-                        cornerRadius: 8,
-                        callbacks: { 
-                          label: function(context) { return 'Dispatched: ' + context.raw; }
-                        }
-                      } 
-                    },
-                    scales: {
-                      x: { display: false },
-                      y: { display: false, beginAtZero: true }
-                    },
-                    animation: { duration: 0 }
-                  }
-                });
-              }).catch(e => console.error(e));
-            }
-          });
-        } catch (err) {
-          console.error("Failed to load sessions", err);
         }
       }
-    })();
-  </script>
-  <nav class="mobile-bottom-nav" aria-label="Bottom navigation">
-    <a href="/">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 10.5 12 3l9 7.5"></path>
-        <path d="M5 9.5V21h14V9.5"></path>
-      </svg>
-      <span>Dashboard</span>
-    </a>
-    <a href="/cameras">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
-        <circle cx="12" cy="13" r="3"></circle>
-      </svg>
-      <span>Cameras</span>
-    </a>
-    <a href="/sessions" class="active">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 2v4"></path>
-        <path d="M16 2v4"></path>
-        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-        <path d="M3 10h18"></path>
-      </svg>
-      <span>Sessions</span>
-    </a>
-    <a href="/settings">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path
-          d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z">
-        </path>
-      </svg>
-      <span>Settings</span>
-    </a>
-  </nav>
+    };
 
-  <script src="/static/js/main.js?v=30"></script></script>
-</body>
+    window.viewSessionAnalytics = async (id, name) => {
+      analyticsModalTitle.textContent = `Analytics: ${name}`;
+      sessionChartContainer.innerHTML = '';
+      sessionChartEmpty.style.display = 'none';
+      analyticsModal.style.display = 'flex';
 
-</html>
+      try {
+        const res = await fetch(`/api/analytics/session/${id}`);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          sessionChartEmpty.style.display = 'block';
+          return;
+        }
+
+        const maxCount = Math.max(1, ...data.map(d => Math.max(d.in_count, d.out_count)));
+
+        data.forEach(item => {
+          const timeLabel = item.time_slice.split(' ')[1]; // Extract HH:MM
+          const inC = item.in_count || 0;
+          const outC = item.out_count || 0;
+
+          const col = document.createElement('div');
+          col.style = 'display: flex; flex-direction: column; justify-content: flex-end; align-items: center; width: 40px; margin: 0 4px; cursor: pointer; flex-shrink: 0;';
+
+          const wrapper = document.createElement('div');
+          wrapper.style = 'display: flex; align-items: flex-end; gap: 2px; height: 250px; width: 100%;';
+
+          const inH = (inC / maxCount) * 100;
+          const outH = (outC / maxCount) * 100;
+
+          wrapper.innerHTML = `
+            <div style="width: 50%; height: ${inH}%; background: var(--accent-green); border-radius: 2px 2px 0 0;"></div>
+            <div style="width: 50%; height: ${outH}%; background: var(--accent-red); border-radius: 2px 2px 0 0;"></div>
+          `;
+
+          col.addEventListener('mouseenter', (e) => {
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = `<strong>${timeLabel}</strong><br>IN: <span style="color:var(--accent-green)">${inC}</span> | OUT: <span style="color:var(--accent-red)">${outC}</span>`;
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY - 30 + 'px';
+          });
+          col.addEventListener('mousemove', (e) => {
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY - 30 + 'px';
+          });
+          col.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+          });
+
+          const lbl = document.createElement('div');
+          lbl.style = 'font-size: 10px; margin-top: 8px; color: var(--text-muted); text-align: center;';
+          lbl.textContent = timeLabel;
+
+          col.appendChild(wrapper);
+          col.appendChild(lbl);
+          sessionChartContainer.appendChild(col);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    window.resumeSession = async (id) => {
+      try {
+        const res = await fetch(`/api/sessions/${id}/resume`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || data.error || "Failed to resume lap.");
+          return;
+        }
+        loadSessions(cameraSelect.value);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    window.pauseSession = async (camId) => {
+      try {
+        const res = await fetch(`/api/sessions/pause`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ camera_id: camId })
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || data.error || "Failed to pause session");
+          return;
+        }
+        loadSessions(cameraSelect.value);
+      } catch (e) {
+        console.error(e);
+        alert("Network error. Failed to pause session.");
+      }
+    };
+
+    window.stopSession = async (camId) => {
+      if (!confirm("Are you sure you want to stop this session?")) return;
+      try {
+        const res = await fetch(`/api/sessions/stop`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ camera_id: camId })
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.detail || data.error || "Failed to stop session");
+          return;
+        }
+        loadSessions(cameraSelect.value);
+      } catch (e) {
+        console.error(e);
+        alert("Network error. Failed to stop session.");
+      }
+    };
+
+    window.deleteSession = async (id) => {
+      if (!confirm("Are you sure you want to permanently delete this session?")) return;
+      try {
+        const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadSessions(cameraSelect.value);
+        } else {
+          const data = await res.json();
+          alert(data.detail || "Failed to delete session.");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    async function loadSessions(cameraId) {
+      sessionsGrid.innerHTML = "";
+      emptyState.style.display = "none";
+      paginationControls.style.display = "none";
+
+      let runningCameraIds = new Set();
+      try {
+        const camsRes = await fetch("/api/cameras");
+        const cams = await camsRes.json();
+        cams.forEach(c => {
+          if (c.counting) runningCameraIds.add(c.id);
+        });
+      } catch (err) {
+        console.error("Failed to load running cameras status", err);
+      }
+      
+      let url = cameraId && cameraId !== 'all' ? `/api/sessions/${cameraId}?page=${currentPage}&limit=${limit}` : `/api/sessions?page=${currentPage}&limit=${limit}`;
+      if (startDateInput.value) url += `&start_date=${startDateInput.value}`;
+      if (endDateInput.value) url += `&end_date=${endDateInput.value}`;
+      
+      try {
+        const res = await fetch(url);
+        const responseData = await res.json();
+        const sessions = responseData.data || [];
+        totalItems = responseData.total || 0;
+
+        if (sessions.length === 0) {
+          emptyState.style.display = "block";
+          return;
+        }
+        
+        if (totalItems > limit) {
+           paginationControls.style.display = "flex";
+           pageIndicator.textContent = `Page ${currentPage} of ${Math.ceil(totalItems / limit)}`;
+           btnPrevPage.disabled = currentPage === 1;
+           btnNextPage.disabled = currentPage === Math.ceil(totalItems / limit);
+        }
+
+        sessions.forEach(s => {
+          const initial = s.name.charAt(0).toUpperCase();
+
+          // Calculate chart stats
+          const dispatched = s.total_out;
+          const produced = s.total_in;
+          const isRunning = runningCameraIds.has(s.camera_id);
+          let actionButtons = "";
+          if (s.status === 'active') {
+             if (isRunning) {
+               actionButtons = `
+                 <button onclick="pauseSession(${s.camera_id})" class="btn btn-secondary" style="padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid var(--border-subtle);">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="4"></line></svg>
+                   Pause
+                 </button>
+                 <button onclick="stopSession(${s.camera_id})" class="btn" style="background: var(--accent-red, #ef4444); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
+                   Stop
+                 </button>
+               `;
+             } else {
+               actionButtons = `
+                 <button onclick="resumeSession(${s.id})" class="btn" style="background: var(--accent-blue, #3b82f6); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                   Resume
+                 </button>
+                 <button onclick="stopSession(${s.camera_id})" class="btn" style="background: var(--accent-red, #ef4444); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
+                   Stop
+                 </button>
+               `;
+             }
+           } else {
+             actionButtons = `
+               <button onclick="resumeSession(${s.id})" class="btn" style="background: var(--accent-blue, #3b82f6); color: white; padding: 8px; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none;">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                 Resume
+               </button>
+             `;
+           }
+
+          const card = document.createElement("div");
+          card.className = "card session-card card-hoverable";
+          card.style = "display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden;";
+          
+          card.innerHTML = `
+             <div style="height: 3px; width: 100%; background: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #22c55e)' : 'var(--accent-yellow, #eab308)') : 'var(--text-muted, #94a3b8)'};"></div>
+             <div class="session-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px 12px; position: relative;">
+               <div style="display: flex; align-items: center; gap: 12px;">
+                 <div style="width: 36px; height: 36px; border-radius: 10px; background: ${s.status === 'active' ? (isRunning ? 'var(--tint-green, #dcfce7)' : 'var(--tint-yellow, #fef9c3)') : 'var(--bg-surface-hover, #f1f5f9)'}; color: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #166534)' : 'var(--accent-yellow, #854d0e)') : 'var(--text-secondary, #475569)'}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">
+                   ${initial}
+                 </div>
+                 <div>
+                   <h3 style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">${s.name}</h3>
+                   <span class="session-status" style="font-size: 11px; font-weight: 600; color: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #16a34a)' : 'var(--accent-yellow, #ca8a04)') : 'var(--text-muted, #64748b)'}; display: flex; align-items: center; gap: 6px;">
+                     <span style="position:relative; display:flex; width: 6px; height: 6px;">
+                       ${s.status === 'active' && isRunning ? '<span style="position:absolute; inset:0; border-radius:50%; background:var(--accent-green, #4ade80); opacity:0.7; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>' : ''}
+                       <span style="position:relative; width: 6px; height: 6px; border-radius: 50%; background: ${s.status === 'active' ? (isRunning ? 'var(--accent-green, #22c55e)' : 'var(--accent-yellow, #eab308)') : 'var(--text-muted, #94a3b8)'};"></span>
+                     </span>
+                     ${s.status === 'active' ? (isRunning ? 'ACTIVE' : 'PAUSED') : 'CLOSED'}
+                   </span>
+                 </div>
+               </div>
+               <div class="session-card-actions">
+                 <!-- Actions dropdown if needed -->
+               </div>
+             </div>
+             
+             <div style="flex: 1; padding: 8px 20px 16px;">
+              <div style="background: var(--bg-surface-solid, #f8fafc); border-radius: 12px; padding: 12px 16px; border: 1px solid var(--border-subtle); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width: 24px; height: 24px; border-radius: 6px; background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #4f46e5); display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                  </div>
+                  <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Total Dispatched</div>
+                </div>
+                <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1;">${dispatched}</div>
+              </div>  
+               <div style="height: 60px; position: relative;">
+                 <canvas id="sessionChart_${s.id}"></canvas>
+               </div>
+             </div>
+             
+             <div style="display: flex; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-surface-solid);">
+               <button onclick="viewSessionAnalytics(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary icon-btn" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; border-radius: 8px; border: 1px solid var(--border-subtle);" title="Analytics">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+               </button>
+               <button onclick="editSession(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; border-radius: 8px; border: 1px solid var(--border-subtle);" title="Rename">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+               </button>
+               
+               ${actionButtons}
+               
+               <button onclick="deleteSession(${s.id})" class="btn" style="padding: 8px; width: 36px; height: 36px; flex-shrink: 0; background: transparent; color: var(--accent-red, #ef4444); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; justify-content: center; align-items: center;" title="Delete">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+               </button>
+             </div>
+          `;
+          sessionsGrid.appendChild(card);
+
+          const ctx = document.getElementById(`sessionChart_${s.id}`);
+          const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+          const chartColor = isDark ? '#3b82f6' : '#3b82f6';
+          if (ctx && typeof Chart !== 'undefined') {
+            fetch(`/api/analytics/session/${s.id}`).then(r => r.json()).then(data => {
+              if (!data || data.length === 0) return;
+              const labels = data.map(d => d.time_slice.split(' ')[1]);
+              const counts = data.map(d => d.out_count || 0);
+              new Chart(ctx, {
+                type: 'bar',
+                data: {
+                  labels: labels,
+                  datasets: [{
+                    data: counts,
+                    backgroundColor: chartColor,
+                    borderRadius: 4,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
+                    maxBarThickness: 18
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { 
+                    legend: { display: false }, 
+                    tooltip: { 
+                      displayColors: false,
+                      backgroundColor: isDark ? 'rgba(25, 27, 35, 0.95)' : 'rgba(15, 23, 42, 0.9)',
+                      titleColor: '#f8fafc',
+                      bodyColor: '#f8fafc',
+                      padding: 10,
+                      cornerRadius: 8,
+                      callbacks: { 
+                        label: function(context) { return 'Dispatched: ' + context.raw; }
+                      }
+                    } 
+                  },
+                  scales: {
+                    x: { display: false },
+                    y: { display: false, beginAtZero: true }
+                  },
+                  animation: { duration: 0 }
+                }
+              });
+            }).catch(e => console.error(e));
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load sessions", err);
+      }
+    }
+  })();
+</script>
+{% endblock %}

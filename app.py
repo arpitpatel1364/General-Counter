@@ -14,9 +14,10 @@ os.environ["OPENCV_LOG_LEVEL"] = "quiet"
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.templating import Jinja2Templates
 
 import database as db
 from routes.cameras import router as cameras_router
@@ -121,53 +122,45 @@ def get_system_settings():
 # ---------------------------------------------------------------------------
 # Page routes — serve HTML templates
 # ---------------------------------------------------------------------------
-TEMPLATES = "templates"
-
-
-def _html(name: str):
-    response = FileResponse(os.path.join(TEMPLATES, name))
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+templates = Jinja2Templates(directory="templates")
 
 
 @app.get("/")
-def dashboard():
-    return _html("dashboard.html")
+def dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
 @app.get("/cameras")
-def cameras_page():
-    return _html("cameras.html")
+def cameras_page(request: Request):
+    return templates.TemplateResponse("cameras.html", {"request": request})
 
 
 @app.get("/add-camera")
-def add_camera_page():
-    return _html("add_camera.html")
+def add_camera_page(request: Request):
+    return templates.TemplateResponse("add_camera.html", {"request": request})
 
 
 @app.get("/edit-camera/{camera_id}")
-def edit_camera_page(camera_id: int):
-    return _html("edit_camera.html")
+def edit_camera_page(request: Request, camera_id: int):
+    return templates.TemplateResponse("edit_camera.html", {"request": request})
 
 
 @app.get("/roi/{camera_id}")
-def roi_page(camera_id: int):
-    return _html("roi.html")
+def roi_page(request: Request, camera_id: int):
+    return templates.TemplateResponse("roi.html", {"request": request})
 
 
 @app.get("/settings")
-def settings_page():
-    return _html("settings.html")
+def settings_page(request: Request):
+    return templates.TemplateResponse("settings.html", {"request": request})
 
 @app.get("/sessions")
-def sessions_page():
-    return _html("sessions.html")
+def sessions_page(request: Request):
+    return templates.TemplateResponse("sessions.html", {"request": request})
 
 @app.get("/session-logs")
-def session_logs_page():
-    return _html("session_logs.html")
+def session_logs_page(request: Request):
+    return templates.TemplateResponse("session_logs.html", {"request": request})
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,8 @@ def list_cameras():
     active_ids = camera_manager.active_camera_ids()
     for c in cams:
         c["running"] = c["id"] in active_ids
+        det = camera_manager.get_detector(c["id"])
+        c["counting"] = (det.status == "running") if det else False
         if c["roi_data"]:
             c["roi_data"] = json.loads(c["roi_data"])
     return cams
@@ -110,14 +112,25 @@ def update_roi(camera_id: int, payload: ROIUpdate):
 @router.get("/{camera_id}/stats")
 def camera_stats(camera_id: int):
     det = camera_manager.get_detector(camera_id)
+    session = db.get_active_session(camera_id)
+    
     if not det:
+        if session:
+            return {
+                "online": False,
+                "in_count": 0,
+                "out_count": 0,
+                "roi_occupancy": 0,
+                "fps": 0,
+                "status": "paused",
+                "target_class": session.get('target_class', 0),
+                "session_name": session.get('name'),
+                "session_id": session.get('id')
+            }
         return {"online": False, "in_count": 0, "out_count": 0, "roi_occupancy": 0, "fps": 0, "status": "stopped", "target_class": 0}
         
-    session_name = "Unknown Session"
-    if det.session_id:
-        session = db.get_active_session(camera_id)
-        if session:
-            session_name = session['name']
+    session_name = session['name'] if session else "Unknown Session"
+    session_id = session['id'] if session else None
             
     class_name = f"Class {det.target_class}"
     if det.model and hasattr(det.model, "names"):
@@ -133,5 +146,6 @@ def camera_stats(camera_id: int):
         "status": det.status,
         "target_class": det.target_class,
         "session_name": session_name,
+        "session_id": session_id,
         "class_name": class_name
     }

@@ -48,10 +48,6 @@ function initResponsiveNavigation() {
       sidebar.classList.toggle('collapsed', shouldCollapse);
       sidebarToggle.setAttribute('aria-expanded', String(!shouldCollapse));
       sidebarToggle.setAttribute('aria-label', shouldCollapse ? 'Expand sidebar' : 'Collapse sidebar');
-      const icon = sidebarToggle.querySelector('svg');
-      if (icon) {
-        icon.style.transform = shouldCollapse ? 'rotate(180deg)' : 'rotate(0deg)';
-      }
     } else {
       sidebar.classList.remove('collapsed');
       if (sidebarToggle) {
@@ -78,10 +74,6 @@ function initResponsiveNavigation() {
       localStorage.setItem('sidebarCollapsed', String(willCollapse));
       sidebarToggle.setAttribute('aria-expanded', String(!willCollapse));
       sidebarToggle.setAttribute('aria-label', willCollapse ? 'Expand sidebar' : 'Collapse sidebar');
-      const icon = sidebarToggle.querySelector('svg');
-      if (icon) {
-        icon.style.transform = willCollapse ? 'rotate(180deg)' : 'rotate(0deg)';
-      }
     });
   }
 
@@ -377,6 +369,7 @@ function initSessionControls(cameraId) {
   const btnToggle = document.getElementById('btnToggleCount');
   const activeActionButtons = document.getElementById('activeActionButtons');
   const btnPauseCount = document.getElementById('btnPauseCount');
+  const btnResumeCount = document.getElementById('btnResumeCount');
   const btnExitSession = document.getElementById('btnExitSession');
   
   const countingIndicator = document.getElementById('countingIndicator');
@@ -403,20 +396,59 @@ function initSessionControls(cameraId) {
           countingIndicator.style.backgroundColor = 'var(--accent-green)';
           const sessionStr = data.session_name || 'Unknown Lap';
           const classStr = data.class_name ? data.class_name.charAt(0).toUpperCase() + data.class_name.slice(1) : 'Unknown Class';
-          countingText.textContent = `Counting Active: ${sessionStr} (${classStr}) | IN: ${data.in_count} | OUT: ${data.out_count}`;
+          
+          countingText.style.display = 'flex';
+          countingText.style.alignItems = 'center';
+          countingText.style.gap = '8px';
+          countingText.innerHTML = `
+            <span style="font-weight: 600; color: var(--text-primary);">Counting Active:</span>
+            <span style="background: var(--bg-surface-hover, #f1f5f9); padding: 4px 10px; border-radius: 6px; font-weight: 500; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border-subtle);">${sessionStr} (${classStr})</span>
+            <span style="display: flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; margin-left: 4px;">
+              <span style="background: var(--tint-blue, #dbeafe); color: var(--accent-blue, #2563eb); padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M9 21v-9a2 2 0 0 1 2-2h10"></path><path d="M21 3l-7 7"></path></svg>
+                IN ${data.in_count}
+              </span>
+              <span style="background: var(--tint-red, #fee2e2); color: var(--accent-red, #dc2626); padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H3v-6"></path><path d="M15 3v9a2 2 0 0 1-2 2H3"></path><path d="M3 21l7-7"></path></svg>
+                OUT ${data.out_count}
+              </span>
+            </span>
+          `;
+          
           btnToggle.style.display = 'none';
+          if (btnResumeCount) btnResumeCount.style.display = 'none';
           activeActionButtons.style.display = 'flex';
         } else if (currentStatus === 'loading') {
           countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
-          countingText.textContent = 'Loading model plz wait...';
+          countingText.style.display = 'inline';
+          countingText.innerHTML = 'Loading model plz wait...';
           btnToggle.style.display = 'none';
+          if (btnResumeCount) btnResumeCount.style.display = 'none';
+          activeActionButtons.style.display = 'none';
+        } else if (currentStatus === 'paused') {
+          countingIndicator.style.backgroundColor = 'var(--accent-yellow)';
+          const sessionStr = data.session_name || 'Unknown Lap';
+          const classStr = data.class_name ? data.class_name.charAt(0).toUpperCase() + data.class_name.slice(1) : 'Unknown Class';
+          
+          countingText.style.display = 'flex';
+          countingText.style.alignItems = 'center';
+          countingText.style.gap = '8px';
+          countingText.innerHTML = `
+            <span style="font-weight: 600; color: var(--text-primary);">Session Paused:</span>
+            <span style="background: var(--bg-surface-hover, #f1f5f9); padding: 4px 10px; border-radius: 6px; font-weight: 500; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border-subtle);">${sessionStr} (${classStr})</span>
+          `;
+          
+          btnToggle.style.display = 'none';
+          if (btnResumeCount) btnResumeCount.style.display = 'block';
           activeActionButtons.style.display = 'none';
         } else {
           countingIndicator.style.backgroundColor = 'var(--text-muted)';
-          countingText.textContent = 'Ready to count';
+          countingText.style.display = 'inline';
+          countingText.innerHTML = 'Ready to count';
           btnToggle.style.display = 'block';
           btnToggle.textContent = 'Start Counting';
           btnToggle.classList.replace('btn-secondary', 'btn-primary');
+          if (btnResumeCount) btnResumeCount.style.display = 'none';
           activeActionButtons.style.display = 'none';
         }
       }
@@ -486,6 +518,37 @@ function initSessionControls(cameraId) {
     } finally {
       btnPauseCount.disabled = false;
       if (btnExitSession) btnExitSession.disabled = false;
+    }
+  });
+
+  btnResumeCount?.addEventListener('click', async () => {
+    btnResumeCount.disabled = true;
+    countingText.innerHTML = 'Resuming...';
+    
+    // Check if we have the session id from stats, we didn't save it locally though...
+    // Actually we can just hit /api/sessions/start or a generic resume endpoint that infers session.
+    // Let's fetch stats again to get session_id
+    try {
+      const statRes = await fetch('/api/cameras/' + cameraId + '/stats');
+      const stats = await statRes.json();
+      if (stats.session_id) {
+        const res = await fetch(`/api/sessions/${stats.session_id}/resume`, { method: 'POST' });
+        if (res.ok) {
+          currentStatus = 'running';
+          pollStatus();
+        } else {
+          alert('Failed to resume counting.');
+          pollStatus();
+        }
+      } else {
+        alert('Could not identify paused session ID.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error. Failed to resume counting.');
+      pollStatus();
+    } finally {
+      btnResumeCount.disabled = false;
     }
   });
 
