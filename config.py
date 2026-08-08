@@ -9,7 +9,7 @@ load_dotenv()
 
 class Settings:
     APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
-    APP_PORT: int = int(os.getenv("APP_PORT", 8000))
+    APP_PORT: int = int(os.getenv("APP_PORT", 8500))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key")
 

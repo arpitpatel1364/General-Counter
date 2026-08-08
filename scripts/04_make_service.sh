@@ -27,12 +27,21 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# Locate virtual env python
+VENV_PYTHON="${PROJECT_ROOT}/venv/bin/python"
+if [ ! -f "$VENV_PYTHON" ] && [ -f "${PROJECT_ROOT}/venv/Scripts/python.exe" ]; then
+    VENV_PYTHON="${PROJECT_ROOT}/venv/Scripts/python.exe"
+fi
+
 # Locate virtual env uvicorn
 UVICORN_BIN="${PROJECT_ROOT}/venv/bin/uvicorn"
 if [ ! -f "$UVICORN_BIN" ]; then
     log_error "uvicorn not found at ${UVICORN_BIN}. Run 01_setup_venv.sh first."
     exit 1
 fi
+
+# Resolve application port from config
+APP_PORT=$("$VENV_PYTHON" -c "from config import settings; print(settings.APP_PORT)" 2>/dev/null || echo 8500)
 
 log_info "Writing systemd service file..."
 
@@ -48,7 +57,7 @@ User=${REAL_USER}
 Group=${REAL_GROUP}
 WorkingDirectory=${PROJECT_ROOT}
 EnvironmentFile=${ENV_FILE}
-ExecStart=${UVICORN_BIN} app:app --host 0.0.0.0 --port 8000
+ExecStart=${UVICORN_BIN} app:app --host 0.0.0.0 --port ${APP_PORT}
 Restart=always
 RestartSec=5
 StandardOutput=journal
