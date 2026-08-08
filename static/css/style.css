@@ -716,7 +716,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Base grids for cards */
 .session-grid, .camera-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: var(--content-gap);
   margin-top: 16px;
 }
@@ -1703,13 +1703,15 @@ tr:hover, .table-row:hover {
 
 .session-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 16px;
   margin-top: 24px;
 }
 
 .session-card {
   position: relative;
+  max-width: 480px;
+  width: 100%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .session-card:hover {
@@ -2765,7 +2767,7 @@ html, body, .sidebar, .topbar, .card, .btn, .nav-link, input, select, textarea, 
 /* Session Grid */
 .session-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
   margin-top: 24px;
 }
