@@ -20,9 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initROI();
   } else if (path === '/analytics') {
     initAnalytics();
-  } else if (path === '/settings') {
-    initSettings();
-  }
+
 
 
 });
@@ -1571,26 +1569,6 @@ function renderCharts(data) {
   });
 }
 
-// --- Settings Setup ---
-async function initSettings() {
-  try {
-    const res = await fetch('/api/system/settings');
-    if (res.ok) {
-      const data = await res.json();
-      const el = (id) => document.getElementById(id);
-      
-      if (el('settingMaxCameras')) el('settingMaxCameras').textContent = data.max_cameras;
-      if (el('settingModel')) el('settingModel').textContent = data.model;
-      if (el('settingConfidence')) el('settingConfidence').textContent = data.confidence;
-      if (el('settingIou')) el('settingIou').textContent = data.iou;
-      if (el('settingTracker')) el('settingTracker').textContent = data.tracker;
-      if (el('settingLogLevel')) el('settingLogLevel').textContent = data.log_level;
-      if (el('settingFpsLimit')) el('settingFpsLimit').textContent = data.frame_rate;
-      if (el('settingReconnectDelay')) el('settingReconnectDelay').textContent = data.reconnect_delay + 's';
-    }
-  } catch(e) {
-    console.error('Failed to load settings:', e);
-  }
-}
+
 
 

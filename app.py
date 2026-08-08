@@ -104,20 +104,6 @@ def get_model_classes():
         return {0: "Unknown (Error loading model)"}
 
 
-@app.get("/api/system/settings")
-def get_system_settings():
-    return {
-        "max_cameras": settings.MAX_CAMERAS,
-        "model": settings.MODEL,
-        "confidence": settings.CONFIDENCE,
-        "iou": settings.IOU,
-        "tracker": settings.TRACKER,
-        "frame_rate": settings.FRAME_RATE,
-        "jpeg_quality": settings.JPEG_QUALITY,
-        "reconnect_delay": settings.RECONNECT_DELAY,
-        "log_level": settings.LOG_LEVEL,
-    }
-
 
 # ---------------------------------------------------------------------------
 # Page routes — serve HTML templates
@@ -149,10 +135,6 @@ def edit_camera_page(request: Request, camera_id: int):
 def roi_page(request: Request, camera_id: int):
     return templates.TemplateResponse("roi.html", {"request": request})
 
-
-@app.get("/settings")
-def settings_page(request: Request):
-    return templates.TemplateResponse("settings.html", {"request": request})
 
 @app.get("/sessions")
 def sessions_page(request: Request):
