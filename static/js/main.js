@@ -20,9 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initROI();
   } else if (path === '/analytics') {
     initAnalytics();
-
-
-
+  }
 });
 
 function initResponsiveNavigation() {
