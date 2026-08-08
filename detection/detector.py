@@ -128,7 +128,7 @@ class Detector:
                 if torch.cuda.is_available():
                     logger.info("Camera %d: Warmup YOLO model on GPU...", self.camera_id)
                     dummy = np.zeros((settings.IMGSZ, settings.IMGSZ, 3), dtype=np.uint8)
-                    model(dummy, verbose=False, device=0, quantize=16)
+                    model(dummy, verbose=False, device=0)
                     logger.info("Camera %d: GPU warmup complete.", self.camera_id)
                     
                 with self._lock:
