@@ -1,7 +1,8 @@
 """
 Session (Lap) management endpoints.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from pydantic import BaseModel
 import database as db
 from services.camera_manager import camera_manager
@@ -20,16 +21,36 @@ class SessionRename(BaseModel):
     name: str
 
 @router.get("")
-def get_all_sessions():
-    return db.list_sessions()
+def get_all_sessions(
+    page: int = Query(1, ge=1),
+    limit: int = Query(12, ge=1, le=100),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    offset = (page - 1) * limit
+    return db.list_sessions(None, start_date, end_date, limit, offset)
 
 @router.get("/activity-logs")
-def get_activity_logs():
-    return db.list_session_activity_logs()
+def get_activity_logs(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    camera: Optional[str] = None,
+    search: Optional[str] = None,
+    activity: Optional[str] = None
+):
+    offset = (page - 1) * limit
+    return db.list_session_activity_logs(camera, search, activity, limit, offset)
 
 @router.get("/{camera_id}")
-def get_sessions(camera_id: int):
-    return db.list_sessions(camera_id)
+def get_sessions(
+    camera_id: int,
+    page: int = Query(1, ge=1),
+    limit: int = Query(12, ge=1, le=100),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    offset = (page - 1) * limit
+    return db.list_sessions(camera_id, start_date, end_date, limit, offset)
 
 @router.post("/start")
 def start_session(payload: SessionStart):

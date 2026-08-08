@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=15">
+  <link rel="stylesheet" href="/static/css/style.css?v=35">
 
   <script>
     (function() {
@@ -46,7 +46,17 @@
 
   <main class="main">
     <header class="topbar">
-      <h1>ROI Setup</h1>
+      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="page-header-title">
+        <div class="breadcrumb-nav">
+          <a href="/cameras">Cameras</a>
+          <span class="breadcrumb-separator">/</span>
+          <span>ROI Setup</span>
+        </div>
+        <h1>ROI Configuration</h1>
+      </div>
       <div class="topbar-actions">
         <button id="themeToggle" class="btn btn-secondary icon-btn" aria-label="Toggle Theme">
           <svg id="themeIconDark" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -56,7 +66,7 @@
     </header>
 
     <div class="content">
-      <div class="card" style="max-width: 840px; margin: 0 auto; padding: 20px;">
+      <div class="card" style="max-width: 600px; margin: 0 auto; padding: 24px;">
         
         <!-- ROI Header Row -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
@@ -85,7 +95,6 @@
             <button class="btn roi-btn" id="modeSelect" title="Edit Region" style="display:none;"></button>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-outline" id="finishPoly" style="display:none; font-size: 13px;">Finish Poly</button>
             <button class="btn btn-destructive" id="btnClearRoi" style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               Delete
@@ -94,7 +103,7 @@
         </div>
 
         <!-- Canvas Container with Overlays -->
-        <div style="position: relative; margin-top: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; background: #000; display: flex; justify-content: center; align-items: center;">
+        <div style="position: relative; margin-top: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; background: #000; display: flex; justify-content: center; align-items: center; aspect-ratio: 16/9;">
           
           <!-- Camera name overlay bottom-left -->
           <div style="position: absolute; bottom: 12px; left: 12px; z-index: 20; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-sm); pointer-events: none;">
@@ -189,6 +198,6 @@
     </a>
   </nav>
 
-  <script src="/static/js/main.js?v=15"></script>
+  <script src="/static/js/main.js?v=35"></script>
 </body>
 </html>

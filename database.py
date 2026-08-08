@@ -321,12 +321,35 @@ def get_active_session(camera_id: int):
         row = conn.execute("SELECT * FROM sessions WHERE camera_id=? AND status='active'", (camera_id,)).fetchone()
     return dict(row) if row else None
 
-def list_sessions(camera_id: int = None):
+def list_sessions(camera_id: int = None, start_date: str = None, end_date: str = None, limit: int = 100, offset: int = 0):
+    query = "SELECT * FROM sessions"
+    count_query = "SELECT COUNT(*) as total FROM sessions"
+    
+    conditions = []
+    params = []
+    
+    if camera_id is not None:
+        conditions.append("camera_id = ?")
+        params.append(camera_id)
+        
+    if start_date:
+        conditions.append("date(created_at) >= ?")
+        params.append(start_date)
+        
+    if end_date:
+        conditions.append("date(created_at) <= ?")
+        params.append(end_date)
+        
+    if conditions:
+        where_clause = " WHERE " + " AND ".join(conditions)
+        query += where_clause
+        count_query += where_clause
+        
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    
     with db() as conn:
-        if camera_id is not None:
-            rows = conn.execute("SELECT * FROM sessions WHERE camera_id=? ORDER BY created_at DESC", (camera_id,)).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+        total = conn.execute(count_query, params).fetchone()['total']
+        rows = conn.execute(query, params + [limit, offset]).fetchall()
             
     sessions = [dict(r) for r in rows]
     # Augment with counts
@@ -341,7 +364,7 @@ def list_sessions(camera_id: int = None):
             s['total_in'] = counts['total_in'] or 0
             s['total_out'] = counts['total_out'] or 0
             
-    return sessions
+    return {"total": total, "data": sessions}
 
 def rename_session(session_id: int, new_name: str):
     with db() as conn:
@@ -361,21 +384,47 @@ def log_session_activity(session_id: int, activity: str, details: str):
             (session_id, activity, details)
         )
 
-def list_session_activity_logs():
+def list_session_activity_logs(camera_name: str = None, search: str = None, activity: str = None, limit: int = 50, offset: int = 0):
+    query = """
+        FROM session_activity_logs sal
+        LEFT JOIN sessions s ON sal.session_id = s.id
+        LEFT JOIN cameras c ON s.camera_id = c.id
+    """
+    
+    conditions = []
+    params = []
+    
+    if camera_name:
+        conditions.append("LOWER(c.name) = ?")
+        params.append(camera_name.lower())
+        
+    if search:
+        conditions.append("LOWER(s.name) LIKE ?")
+        params.append(f"%{search.lower()}%")
+        
+    if activity:
+        conditions.append("LOWER(sal.activity) = ?")
+        params.append(activity.lower())
+        
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+        
+    count_query = "SELECT COUNT(*) as total " + query
+    
+    select_query = """
+        SELECT 
+            sal.timestamp,
+            c.name AS camera_name,
+            s.name AS session_name,
+            sal.activity,
+            sal.details
+    """ + query + " ORDER BY sal.timestamp DESC LIMIT ? OFFSET ?"
+    
     with db() as conn:
-        rows = conn.execute("""
-            SELECT 
-                sal.timestamp,
-                c.name AS camera_name,
-                s.name AS session_name,
-                sal.activity,
-                sal.details
-            FROM session_activity_logs sal
-            LEFT JOIN sessions s ON sal.session_id = s.id
-            LEFT JOIN cameras c ON s.camera_id = c.id
-            ORDER BY sal.timestamp DESC
-        """).fetchall()
-    return [dict(r) for r in rows]
+        total = conn.execute(count_query, params).fetchone()['total']
+        rows = conn.execute(select_query, params + [limit, offset]).fetchall()
+        
+    return {"total": total, "data": [dict(r) for r in rows]}
 
 def analytics_for_session(session_id: int):
     """Returns list of {time_slice, in_count, out_count} for a specific session."""

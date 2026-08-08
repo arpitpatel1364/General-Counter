@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=15">
+  <link rel="stylesheet" href="/static/css/style.css?v=29">
 
   <script>
     (function() {
@@ -23,6 +23,8 @@
   </script>
 </head>
 <body>
+
+  <div class="mobile-drawer-overlay" id="mobileDrawerOverlay"></div>
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
@@ -46,7 +48,17 @@
 
   <main class="main">
     <header class="topbar">
-      <h1>Add Camera</h1>
+      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="page-header-title">
+        <div class="breadcrumb-nav">
+          <a href="/cameras">Cameras</a>
+          <span class="breadcrumb-separator">/</span>
+          <span>Add Camera</span>
+        </div>
+        <h1>Add New Camera</h1>
+      </div>
       <div class="topbar-actions">
         <button id="themeToggle" class="btn btn-secondary icon-btn" aria-label="Toggle Theme">
           <svg id="themeIconDark" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -56,31 +68,53 @@
     </header>
 
     <div class="content">
-      <div class="card" style="max-width: 600px; margin: 0 auto;">
-        <div class="steps">
-          <div class="step active">1. Camera Info</div>
-          <div class="step">2. ROI Setup</div>
+      <div class="card" style="max-width: 600px; margin: 0 auto; padding: 24px;">
+        <div class="steps-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 24px; position: relative;">
+          <!-- A subtle line behind -->
+          <div style="position: absolute; top: 18px; left: 25%; right: 25%; height: 2px; background: var(--border-subtle); z-index: 0;"></div>
+          
+          <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; background: var(--bg-surface); padding: 0 24px; flex: 1;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #3b82f6); border: 2px solid var(--accent-blue, #3b82f6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; box-shadow: 0 0 0 4px var(--bg-surface);">1</div>
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Camera Info</div>
+          </div>
+          
+          <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; background: var(--bg-surface); padding: 0 24px; flex: 1;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: transparent; color: var(--text-muted); border: 2px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; box-shadow: 0 0 0 4px var(--bg-surface);">2</div>
+            <div style="font-size: 14px; font-weight: 600; color: var(--text-muted);">ROI Setup</div>
+          </div>
         </div>
 
         <form id="addCameraForm">
-          <div class="form-group">
-            <label for="camName">Camera Name</label>
-            <input type="text" id="camName" name="name" required placeholder="e.g. Main Entrance">
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="camName" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Camera Name</label>
+            <div style="position: relative;">
+               <svg style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+               <input type="text" id="camName" name="name" required placeholder="e.g. Loading Dock East" style="width: 100%; height: 44px; padding: 10px 16px 10px 48px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-surface); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+            </div>
+            <div class="form-helper" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">A descriptive name to identify this camera stream.</div>
           </div>
           
-          <div class="form-group">
-            <label for="camLocation">Location</label>
-            <input type="text" id="camLocation" name="location" required placeholder="e.g. Lobby">
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="camLocation" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Location</label>
+            <div style="position: relative;">
+               <svg style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+               <input type="text" id="camLocation" name="location" required placeholder="e.g. Warehouse A" style="width: 100%; height: 44px; padding: 10px 16px 10px 48px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-surface); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+            </div>
+            <div class="form-helper" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">The physical deployment location of the camera.</div>
           </div>
 
-          <div class="form-group">
-            <label for="camRtsp">RTSP Stream URL</label>
-            <input type="text" id="camRtsp" name="rtsp_url" required placeholder="rtsp://admin:pass@192.168.1.10:554/stream">
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label for="camRtsp" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">RTSP Stream URL</label>
+            <div style="position: relative;">
+               <svg style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M10 10l4 2-4 2v-4z"/></svg>
+               <input type="text" id="camRtsp" name="rtsp_url" required placeholder="rtsp://admin:password@192.168.1.50:554/h264" style="width: 100%; height: 44px; padding: 10px 16px 10px 48px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-surface); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+            </div>
+            <div class="form-helper" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">The RTSP network address used to pull the video feed.</div>
           </div>
 
-          <div style="display: flex; gap: 10px; margin-top: 24px;">
-            <a href="/cameras" class="btn btn-outline">Cancel</a>
-            <button type="submit" class="btn btn-primary">Next</button>
+          <div style="display: flex; gap: 16px; margin-top: 24px;">
+            <a href="/cameras" class="btn btn-secondary" style="flex: 1; padding: 10px; justify-content: center; font-size: 14px; border-radius: 12px;">Cancel</a>
+            <button type="submit" class="btn btn-primary" style="flex: 1; padding: 10px; justify-content: center; font-size: 14px; border-radius: 12px;">Next step <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 8px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
           </div>
         </form>
       </div>
@@ -106,6 +140,6 @@
     </a>
   </nav>
 
-  <script src="/static/js/main.js?v=15"></script>
+  <script src="/static/js/main.js?v=29"></script>
 </body>
 </html>

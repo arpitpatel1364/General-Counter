@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=15">
+  <link rel="stylesheet" href="/static/css/style.css?v=30">
 
   <script>
     (function() {
@@ -50,7 +50,10 @@
       <button class="menu-toggle" id="menuToggle" aria-label="Open menu" type="button">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
       </button>
-      <h1>Session Logs</h1>
+      <div class="page-header-title">
+        <h1>Session Logs</h1>
+        <div class="subtitle">Real-time tracking of session events, stops, starts, renames, and counting changes</div>
+      </div>
       <div class="topbar-actions">
         <button id="themeToggle" class="btn btn-secondary icon-btn" aria-label="Toggle Theme">
           <svg id="themeIconDark" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -60,49 +63,71 @@
     </header>
 
     <div class="content">
-      <p style="color: var(--text-secondary);">Real-time tracking of session events, stops, starts, renames, and counting changes.</p>
-      
-      <div class="filter-bar card mt-16" style="display: flex; gap: 16px; align-items: center;">
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
-          <label for="cameraFilter" style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase;">Filter by Camera</label>
-          <select id="cameraFilter">
-            <option value="">All Cameras</option>
-          </select>
+      <div class="filter-bar card" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; padding: 24px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px;">
+          <label for="cameraFilter" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Camera</label>
+          <div style="position: relative;">
+            <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <select id="cameraFilter" style="width: 100%; height: 44px; padding: 8px 36px 8px 40px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-input, transparent); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; appearance: none; outline: none; transition: all 0.2s; cursor: pointer;">
+              <option value="">All Cameras</option>
+            </select>
+            <svg style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
-          <label for="searchFilter" style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase;">Search Session Name</label>
-          <input type="text" id="searchFilter" placeholder="Type session name..." style="height: 38px;">
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 2; min-width: 240px;">
+          <label for="searchFilter" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Search Session</label>
+          <div style="position: relative;">
+            <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="searchFilter" placeholder="Search by session name..." style="width: 100%; height: 44px; padding: 8px 16px 8px 40px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-input, transparent); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s;">
+          </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
-          <label for="activityFilter" style="margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase;">Event Type</label>
-          <select id="activityFilter">
-            <option value="">All Events</option>
-            <option value="start">Start</option>
-            <option value="stop">Stop</option>
-            <option value="pause">Pause</option>
-            <option value="resume">Resume</option>
-            <option value="rename">Rename</option>
-          </select>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px;">
+          <label for="activityFilter" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Event Type</label>
+          <div style="position: relative;">
+            <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <select id="activityFilter" style="width: 100%; height: 44px; padding: 8px 36px 8px 40px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-input, transparent); color: var(--text-primary); font-family: inherit; font-size: 14px; font-weight: 500; appearance: none; outline: none; transition: all 0.2s; cursor: pointer;">
+              <option value="">All Events</option>
+              <option value="start">Start</option>
+              <option value="stop">Stop</option>
+              <option value="pause">Pause</option>
+              <option value="resume">Resume</option>
+              <option value="rename">Rename</option>
+            </select>
+            <svg style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
         </div>
       </div>
 
-      <div class="card mt-16" style="padding: 0; overflow-x: auto; border-radius: var(--radius-lg);">
-        <table class="log-table" style="width: 100%; border: none;">
-          <thead>
-            <tr>
-              <th style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">Logged Time</th>
-              <th style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">Camera</th>
-              <th style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">Session / Lap</th>
-              <th style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">Activity</th>
-              <th style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">Details</th>
-            </tr>
-          </thead>
-          <tbody id="logsTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Loading logs...</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="card mt-16" style="padding: 0; overflow: hidden; border-radius: var(--radius-lg);">
+        <div style="overflow-x: auto; max-height: 600px;">
+          <table class="log-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-surface-hover); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+              <tr>
+                <th style="padding: 18px 24px; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle);">Logged Time</th>
+                <th style="padding: 18px 24px; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle);">Camera</th>
+                <th style="padding: 18px 24px; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle);">Session</th>
+                <th style="padding: 18px 24px; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle);">Activity</th>
+                <th style="padding: 18px 24px; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle);">Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 48px; color: var(--text-muted);">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 16px; opacity: 0.5;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  <div>Loading logs...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div id="paginationControls" style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:24px; display:none;">
+        <button id="btnPrevPage" class="btn btn-secondary">Previous</button>
+        <span id="pageIndicator" style="font-size:14px; font-weight:600; color:var(--text-secondary);">Page 1</span>
+        <button id="btnNextPage" class="btn btn-secondary">Next</button>
       </div>
     </div>
   </main>
@@ -113,7 +138,16 @@
       const cameraFilter = document.getElementById("cameraFilter");
       const searchFilter = document.getElementById("searchFilter");
       const activityFilter = document.getElementById("activityFilter");
-      let allLogs = [];
+      
+      const paginationControls = document.getElementById("paginationControls");
+      const btnPrevPage = document.getElementById("btnPrevPage");
+      const btnNextPage = document.getElementById("btnNextPage");
+      const pageIndicator = document.getElementById("pageIndicator");
+
+      let currentPage = 1;
+      const limit = 20;
+      let totalItems = 0;
+      let logsData = [];
 
       // Load cameras
       try {
@@ -121,7 +155,7 @@
         const cams = await res.json();
         cams.forEach(c => {
           const opt = document.createElement("option");
-          opt.value = c.name.toLowerCase();
+          opt.value = c.name; // Keep as actual name for backend query
           opt.textContent = c.name;
           cameraFilter.appendChild(opt);
         });
@@ -132,63 +166,130 @@
       // Fetch activity logs
       async function fetchLogs() {
         try {
-          const res = await fetch("/api/sessions/activity-logs");
-          allLogs = await res.json();
+          const camVal = encodeURIComponent(cameraFilter.value);
+          const searchVal = encodeURIComponent(searchFilter.value.trim());
+          const actVal = encodeURIComponent(activityFilter.value);
+          
+          let url = `/api/sessions/activity-logs?page=${currentPage}&limit=${limit}`;
+          if (camVal) url += `&camera=${camVal}`;
+          if (searchVal) url += `&search=${searchVal}`;
+          if (actVal) url += `&activity=${actVal}`;
+          
+          const res = await fetch(url);
+          const responseData = await res.json();
+          logsData = responseData.data || [];
+          totalItems = responseData.total || 0;
+          
           renderLogs();
+          updatePagination();
         } catch (err) {
           console.error("Failed to fetch session activity logs", err);
           logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--danger)">Error loading logs.</td></tr>`;
         }
       }
 
+      function updatePagination() {
+        if (totalItems > limit) {
+           paginationControls.style.display = "flex";
+           pageIndicator.textContent = `Page ${currentPage} of ${Math.ceil(totalItems / limit)}`;
+           btnPrevPage.disabled = currentPage === 1;
+           btnNextPage.disabled = currentPage === Math.ceil(totalItems / limit);
+        } else {
+           paginationControls.style.display = "none";
+        }
+      }
+
       function renderLogs() {
-        const camVal = cameraFilter.value.toLowerCase();
-        const searchVal = searchFilter.value.trim().toLowerCase();
-        const actVal = activityFilter.value;
-
-        const filtered = allLogs.filter(log => {
-          const logCamera = (log.camera_name || "").toLowerCase();
-          const logSession = (log.session_name || "").toLowerCase();
-          const logActivity = (log.activity || "").toLowerCase();
-
-          const matchesCamera = !camVal || logCamera === camVal;
-          const matchesSearch = !searchVal || logSession.includes(searchVal);
-          const matchesActivity = !actVal || logActivity === actVal;
-
-          return matchesCamera && matchesSearch && matchesActivity;
-        });
-
-        if (filtered.length === 0) {
+        if (logsData.length === 0) {
           logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted)">No logs matching the filters.</td></tr>`;
           return;
         }
 
         logsTableBody.innerHTML = "";
-        filtered.forEach(log => {
+        logsData.forEach(log => {
           const row = document.createElement("tr");
+          row.style.transition = "background 0.2s";
+          row.onmouseover = () => row.style.background = "var(--bg-surface-hover, rgba(0,0,0,0.02))";
+          row.onmouseout = () => row.style.background = "transparent";
           
-          const badgeClass = `badge-${log.activity}`;
-          const formattedDate = new Date(log.timestamp).toLocaleString();
+          let badgeClass = "badge-neutral";
+          const act = (log.activity || "").toLowerCase();
+          if(act === 'start' || act === 'resume') badgeClass = "badge-success";
+          else if(act === 'stop' || act === 'pause') badgeClass = "badge-danger";
+          else if(act === 'rename') badgeClass = "badge-primary";
+
+          // Format Date beautifully
+          const d = new Date(log.timestamp);
+          const datePart = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+          const timePart = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+
           const cameraLabel = log.camera_name || "System";
           const sessionLabel = log.session_name || "Global";
           const detailsLabel = log.details || "—";
 
           row.innerHTML = `
-            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); font-weight: 500; font-family: monospace;">${formattedDate}</td>
-            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">${cameraLabel}</td>
-            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); font-weight: 600; color: var(--text-primary);">${sessionLabel}</td>
-            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);">
-              <span class="log-badge ${badgeClass}">${log.activity}</span>
+            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); font-family: 'Inter', sans-serif; white-space: nowrap;">
+               <div style="font-weight: 600; font-size: 14px;">${datePart}</div>
+               <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">${timePart}</div>
             </td>
-            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${detailsLabel}</td>
+            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                 <div style="width: 28px; height: 28px; border-radius: 6px; background: var(--bg-surface-hover, #f1f5f9); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                 </div>
+                 <span style="font-weight: 500; color: var(--text-primary); font-size: 14px;">${cameraLabel}</span>
+              </div>
+            </td>
+            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                 <div style="width: 28px; height: 28px; border-radius: 6px; background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #3b82f6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
+                   ${sessionLabel.charAt(0).toUpperCase()}
+                 </div>
+                 <span style="font-weight: 600; color: var(--text-primary); font-size: 14px;">${sessionLabel}</span>
+              </div>
+            </td>
+            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap;">
+              <span style="display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; ${
+                act === 'start' || act === 'resume' ? 'background: var(--tint-green, #dcfce7); color: var(--accent-green, #16a34a);' :
+                act === 'stop' || act === 'pause' ? 'background: var(--tint-red, #fee2e2); color: var(--accent-red, #dc2626);' :
+                'background: var(--tint-blue, #e0e7ff); color: var(--accent-blue, #3b82f6);'
+              }">
+                ${log.activity}
+              </span>
+            </td>
+            <td style="padding: 16px 24px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 14px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${detailsLabel}">${detailsLabel}</td>
           `;
           logsTableBody.appendChild(row);
         });
       }
 
-      cameraFilter.addEventListener("change", renderLogs);
-      searchFilter.addEventListener("input", renderLogs);
-      activityFilter.addEventListener("change", renderLogs);
+      function onFilterChange() {
+        currentPage = 1;
+        fetchLogs();
+      }
+
+      cameraFilter.addEventListener("change", onFilterChange);
+      searchFilter.addEventListener("input", () => {
+        // Debounce search
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(onFilterChange, 300);
+      });
+      activityFilter.addEventListener("change", onFilterChange);
+
+      btnPrevPage.addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage--;
+          fetchLogs();
+        }
+      });
+      
+      btnNextPage.addEventListener("click", () => {
+        const totalPages = Math.ceil(totalItems / limit);
+        if (currentPage < totalPages) {
+          currentPage++;
+          fetchLogs();
+        }
+      });
 
       fetchLogs();
       setInterval(fetchLogs, 5000); // Auto refresh every 5s
@@ -213,6 +314,6 @@
     </a>
   </nav>
 
-  <script src="/static/js/main.js?v=15"></script>
+  <script src="/static/js/main.js?v=30"></script>
 </body>
 </html>
