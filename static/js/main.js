@@ -93,6 +93,37 @@ function initResponsiveNavigation() {
   applySidebarState();
 }
 
+function initThemeToggle() {
+  const themeToggleBtn = document.getElementById('themeToggle');
+  const themeIconDark = document.getElementById('themeIconDark');
+  const themeIconLight = document.getElementById('themeIconLight');
+
+  if (!themeToggleBtn) return;
+
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  
+  const updateIcons = (theme) => {
+    if (theme === 'dark') {
+      themeIconDark.style.display = 'none';
+      themeIconLight.style.display = 'block';
+    } else {
+      themeIconDark.style.display = 'block';
+      themeIconLight.style.display = 'none';
+    }
+  };
+
+  updateIcons(currentTheme);
+
+  themeToggleBtn.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTheme = isDark ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('app-theme', newTheme);
+    updateIcons(newTheme);
+  });
+}
+
 // --- Global Status ---
 let globalStatusInterval = null;
 
@@ -816,8 +847,10 @@ async function initCameras() {
       
       toggle.addEventListener('change', () => {
         if (toggle.checked) {
+          container.style.cursor = 'pointer';
           container.innerHTML = `<img src="/api/stream/${cam.id}?t=${Date.now()}" alt="Live Stream" style="width: 100%; height: 100%; object-fit: cover; background: #111;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'800\\\' height=\\\'450\\\'><rect width=\\\'100%\\\' height=\\\'100%\\\' fill=\\\'%23111\\\'/><text x=\\\'50%\\\' y=\\\'50%\\\' font-family=\\\'sans-serif\\\' font-size=\\\'16px\\\' fill=\\\'%23666\\\' text-anchor=\\\'middle\\\' dominant-baseline=\\\'middle\\\'>Stream Offline</text></svg>';">`;
         } else {
+          container.style.cursor = 'default';
           container.innerHTML = `
             <div class="video-offline">
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 12px;"><circle cx="12" cy="12" r="10"></circle><line x1="10" y1="15" x2="10" y2="9"></line><line x1="14" y1="15" x2="14" y2="9"></line></svg>
@@ -826,12 +859,63 @@ async function initCameras() {
           `;
         }
       });
+
+      container.addEventListener('click', () => {
+        if (toggle.checked) {
+          openLiveViewModal(cam.name, cam.id);
+        }
+      });
     });
+
+    // Setup Big Live View Modal Close handlers
+    const modal = document.getElementById('liveViewModal');
+    const modalClose = document.getElementById('closeLiveViewModal');
+    const modalImg = document.getElementById('modalLiveStreamImg');
+    if (modal && modalClose) {
+      const closeModal = () => {
+        modal.style.display = 'none';
+        if (modalImg) modalImg.src = '';
+      };
+      modalClose.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+    }
   } catch (err) {
     grid.innerHTML = '<div class="card"><div style="text-align:center; padding: 20px; color:var(--danger)">Error loading cameras.</div></div>';
     console.error(err);
   }
 }
+
+function openLiveViewModal(camName, camId) {
+  const modal = document.getElementById('liveViewModal');
+  const modalImg = document.getElementById('modalLiveStreamImg');
+  const modalTitle = document.getElementById('modalCameraName');
+  const modalLoader = document.getElementById('modalLoadingIndicator');
+
+  if (!modal || !modalImg) return;
+
+  modalTitle.textContent = `${camName} - Live View`;
+  if (modalLoader) modalLoader.style.display = 'block';
+  modalImg.style.display = 'none';
+  modalImg.src = `/api/stream/${camId}?t=${Date.now()}`;
+  
+  modalImg.onload = () => {
+    if (modalLoader) modalLoader.style.display = 'none';
+    modalImg.style.display = 'block';
+  };
+  
+  modalImg.onerror = () => {
+    if (modalLoader) modalLoader.style.display = 'none';
+    modalImg.style.display = 'block';
+    modalImg.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='100%' height='100%' fill='%23111'/><text x='50%' y='50%' font-family='sans-serif' font-size='16px' fill='%23666' text-anchor='middle' dominant-baseline='middle'>Camera Offline/No Signal</text></svg>";
+  };
+
+  modal.style.display = 'flex';
+}
+
 
 async function toggleCamera(id, isRunning) {
   const action = isRunning ? 'stop' : 'start';
@@ -1576,37 +1660,4 @@ async function initSettings() {
   }
 }
 
-function initThemeToggle() {
-  const toggleBtn = document.getElementById('themeToggle');
-  if (!toggleBtn) return;
-  const iconDark = document.getElementById('themeIconDark');
-  const iconLight = document.getElementById('themeIconLight');
 
-  function applyThemeUI(theme) {
-    if (theme === 'light') {
-      iconLight.style.display = 'none';
-      iconDark.style.display = 'block';
-    } else {
-      iconLight.style.display = 'block';
-      iconDark.style.display = 'none';
-    }
-  }
-
-  let currentTheme = document.documentElement.getAttribute('data-theme');
-  if (!currentTheme) {
-    // Fallback if no attribute but script set something or prefers-color-scheme
-    currentTheme = 'dark'; // By default root is dark
-  }
-  applyThemeUI(currentTheme);
-
-  toggleBtn.addEventListener('click', () => {
-    let newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    if(newTheme === 'dark') {
-      document.documentElement.removeAttribute('data-theme'); // default to root
-    } else {
-      document.documentElement.setAttribute('data-theme', newTheme);
-    }
-    localStorage.setItem('app-theme', newTheme);
-    applyThemeUI(newTheme);
-  });
-}
